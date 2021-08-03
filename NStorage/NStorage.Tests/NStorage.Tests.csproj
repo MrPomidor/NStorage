@@ -19,4 +19,22 @@
     </PackageReference>
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="TestFiles\" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\NStorage.App\NStorage.App.csproj" />
+    <ProjectReference Include="..\NStorage\NStorage.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Update="TestFiles\db4dd0c4-3411-426b-9866-52826434e4c4.bin">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="TestFiles\RandomData.7z">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
 </Project>

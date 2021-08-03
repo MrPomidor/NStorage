@@ -6,9 +6,9 @@ using System.Security.Cryptography;
 
 namespace NStorage.App
 {
-    class Program
+    public class Program
     {
-		static void Main(string[] args)
+		public static void Main(string[] args)
 		{
 			if (args.Length < 2
 				|| !Directory.Exists(args[0])
