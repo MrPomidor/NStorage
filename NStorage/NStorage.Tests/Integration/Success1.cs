@@ -26,7 +26,8 @@ namespace NStorage.Tests.Integration
             NStorage.App.Program.Main(new[] { testDataPath, storagePath });
 
             // cleanup test
-            //CleanupTest(tempTestFolder);
+            // TODO cleanup in special xUnit class
+            CleanupTest(tempTestFolder);
         }
 
         private string GetTempTestFolderPath(string testName)
