@@ -35,6 +35,7 @@ namespace NStorage.Tests.Integration
             NStorage.App.Program.Run(storageFolder: _storageFolder, dataFolder: _dataFolder, take: 10);
         }
 
+        // TODO common class
         private string GetTempTestFolderPath(string testName)
         {
             var guid = Guid.NewGuid().ToString();
@@ -52,9 +53,10 @@ namespace NStorage.Tests.Integration
             return (storagePath, testDataPath);
         }
 
+        // TODO delete
         private string GetLargeTestDataSetFolder()
         {
-            var testFilesFolderPath = @"E:\PROJECTS\NStorage\NStorage\NStorage.Tests\TestData";
+            var testFilesFolderPath = Consts.TestFilesFolderPath;
             if (!Directory.Exists(testFilesFolderPath) || Directory.GetFiles(testFilesFolderPath).Length == 0)
                 throw new Exception($"No test data present ! Please execute \"init.ps1\" to fill test folder with data");
 

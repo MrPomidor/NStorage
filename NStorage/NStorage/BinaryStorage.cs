@@ -45,19 +45,21 @@ namespace NStorage
 
             try
             {
+                //_indexFileStream = File.Open(_indexFilePath, FileMode.Open, FileAccess.ReadWrite, FileShare.None);
                 _indexFileStream = File.Open(_indexFilePath, new FileStreamOptions
                 {
                     Mode = FileMode.Open,
                     Access = FileAccess.ReadWrite,
                     Share = FileShare.None,
-                    Options = FileOptions.Asynchronous
+                    Options = FileOptions.RandomAccess
                 });
+                //_storageFileStream = File.Open(_storageFilePath, FileMode.Open, FileAccess.ReadWrite, FileShare.None);
                 _storageFileStream = File.Open(_storageFilePath, new FileStreamOptions
                 {
                     Mode = FileMode.Open,
                     Access = FileAccess.ReadWrite,
                     Share = FileShare.None,
-                    Options = FileOptions.Asynchronous
+                    Options = FileOptions.RandomAccess
                 });
 
                 _index = DeserializeIndex(); // for more performace index file should be stored in memory

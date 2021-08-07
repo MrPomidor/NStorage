@@ -3,11 +3,13 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.0.31521.260
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NStorage.App", "NStorage.App\NStorage.App.csproj", "{929B027D-7C28-4951-8A01-BCA8E10A9AF6}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "NStorage.App", "NStorage.App\NStorage.App.csproj", "{929B027D-7C28-4951-8A01-BCA8E10A9AF6}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NStorage", "NStorage\NStorage.csproj", "{A3E94330-A00C-4E1B-A9D3-6E2F2FCBFB16}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "NStorage", "NStorage\NStorage.csproj", "{A3E94330-A00C-4E1B-A9D3-6E2F2FCBFB16}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NStorage.Tests", "NStorage.Tests\NStorage.Tests.csproj", "{E6FDAF05-77FC-4FFB-9EB3-E634413002BF}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "NStorage.Tests", "NStorage.Tests\NStorage.Tests.csproj", "{E6FDAF05-77FC-4FFB-9EB3-E634413002BF}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NStorage.Tests.Benchmarks", "NStorage.Tests.Benchmarks\NStorage.Tests.Benchmarks.csproj", "{8F81708F-E932-4A31-8888-5BE152D1B161}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -27,6 +29,10 @@ Global
 		{E6FDAF05-77FC-4FFB-9EB3-E634413002BF}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{E6FDAF05-77FC-4FFB-9EB3-E634413002BF}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{E6FDAF05-77FC-4FFB-9EB3-E634413002BF}.Release|Any CPU.Build.0 = Release|Any CPU
+		{8F81708F-E932-4A31-8888-5BE152D1B161}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{8F81708F-E932-4A31-8888-5BE152D1B161}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{8F81708F-E932-4A31-8888-5BE152D1B161}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{8F81708F-E932-4A31-8888-5BE152D1B161}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
