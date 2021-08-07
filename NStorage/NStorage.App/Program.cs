@@ -6,6 +6,7 @@ using System.Security.Cryptography;
 
 namespace NStorage.App
 {
+	// TODO move to test
     public class Program
     {
 		public static void Main(string[] args)
@@ -14,16 +15,17 @@ namespace NStorage.App
 				|| !Directory.Exists(args[0])
 				|| !Directory.Exists(args[1]))
 			{
-				Console.WriteLine("Usage: NStorage.App.exe InputFolder StorageFolder");
-				return;
+				throw new ArgumentException("Usage: NStorage.App.exe InputFolder StorageFolder");
 			}
+
+			var fileNames = Directory.EnumerateFiles(args[0], "*", SearchOption.AllDirectories).Take(1).ToArray();
 
 			// Create storage and add data
 			Console.WriteLine("Creating storage from " + args[0]);
 			Stopwatch sw = Stopwatch.StartNew();
 			using (var storage = new BinaryStorage(new StorageConfiguration() { WorkingFolder = args[1] }))
 			{
-				Directory.EnumerateFiles(args[0], "*", SearchOption.AllDirectories)
+				fileNames
 					.AsParallel().WithDegreeOfParallelism(4).ForAll(s =>
 					{
 						AddFile(storage, s);
@@ -37,7 +39,7 @@ namespace NStorage.App
 			sw = Stopwatch.StartNew();
 			using (var storage = new BinaryStorage(new StorageConfiguration() { WorkingFolder = args[1] }))
 			{
-				Directory.EnumerateFiles(args[0], "*", SearchOption.AllDirectories)
+				fileNames
 					.AsParallel().WithDegreeOfParallelism(4).ForAll(s =>
 					{
 						using (var resultStream = storage.Get(s))
