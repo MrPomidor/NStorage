@@ -9,25 +9,30 @@ using Xunit;
 
 namespace NStorage.Tests.Integration
 {
+    // TODO rename into "First write all then read all (sequentially)"
+
     /// <summary>
     /// Test encapsulate general success scenario, whewre several threads are reading and writing from storage in a paralell
     /// All data should be saved correctly without losses
     /// </summary>
-    public class Success1
+    public class Success1 : IDisposable
     {
+        private readonly string _tempTestFolder;
+
+        private readonly string _storageFolder;
+        private readonly string _dataFolder;
+
+        public Success1()
+        {
+            _tempTestFolder = GetTempTestFolderPath("Integration/Success1");
+            (_storageFolder, _dataFolder) = GetMainArgs(_tempTestFolder);
+        }
+
         [Fact]
         public void Test()
         {
-            // Prepare for tests
-            var tempTestFolder = GetTempTestFolderPath("Integration/Success1");
-            (var storagePath, var testDataPath) = GetMainArgs(tempTestFolder);
-
             // act
-            NStorage.App.Program.Main(new[] { testDataPath, storagePath });
-
-            // cleanup test
-            // TODO cleanup in special xUnit class
-            CleanupTest(tempTestFolder);
+            NStorage.App.Program.Run(storageFolder: _storageFolder, dataFolder: _dataFolder, take: 10);
         }
 
         private string GetTempTestFolderPath(string testName)
@@ -54,6 +59,11 @@ namespace NStorage.Tests.Integration
                 throw new Exception($"No test data present ! Please execute \"init.ps1\" to fill test folder with data");
 
             return testFilesFolderPath;
+        }
+
+        public void Dispose()
+        {
+            CleanupTest(_tempTestFolder);
         }
 
         private void CleanupTest(string tempTestFolder)

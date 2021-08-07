@@ -93,7 +93,7 @@ namespace NStorage
                 var record = index.Records[i];
                 if (lastEndPosition > 0)
                 {
-                    if (record.DataReference.StreamStart != lastEndPosition + 1)
+                    if (record.DataReference.StreamStart != lastEndPosition)
                         throw new IndexCorruptedException($"Record {i} with key {record.Key} expect to be started at {lastEndPosition}, but started at {record.DataReference.StreamStart}");
                 }
                 lastEndPosition = record.DataReference.StreamStart + record.DataReference.Length;
@@ -123,15 +123,18 @@ namespace NStorage
 
         public void Add(string key, Stream data, StreamInfo parameters)
         {
-            EnsureKeyNotExist(key);
+            lock (this)
+            {
+                EnsureKeyNotExist(key);
 
-            (long startPosition, long length) = AppendStreamToStorage(data, parameters);
+                (long startPosition, long length) = AppendStreamToStorage(data, parameters);
 
-            var index = _index;
-            var record = new IndexRecord(key, new DataReference { StreamStart = startPosition, Length = length }, new DataProperties());
-            index.Records.Add(record);
+                var index = _index;
+                var record = new IndexRecord(key, new DataReference { StreamStart = startPosition, Length = length }, new DataProperties());
+                index.Records.Add(record);
 
-            FlushIndex();
+                FlushIndex();
+            }
         }
 
         private (long startPosition, long length) AppendStreamToStorage(Stream data, StreamInfo parameters)
@@ -166,19 +169,22 @@ namespace NStorage
 
         public Stream Get(string key)
         {
-            if (!Contains(key))
-                throw new KeyNotFoundException(key);
+            lock (this)
+            {
+                if (!Contains(key))
+                    throw new KeyNotFoundException(key);
 
-            var recordData = _index.Records.Single(x => x.Key == key);
+                var recordData = _index.Records.Single(x => x.Key == key);
 
-            var fileStream = _storageFileStream;
+                var fileStream = _storageFileStream;
 
-            fileStream.Seek(recordData.DataReference.StreamStart, SeekOrigin.Begin);
+                fileStream.Seek(recordData.DataReference.StreamStart, SeekOrigin.Begin);
 
-            var bytes = new byte[recordData.DataReference.Length];
-            var bytesRead = fileStream.Read(bytes);
-            var memStream = new MemoryStream(bytes);
-            return memStream;
+                var bytes = new byte[recordData.DataReference.Length];
+                var bytesRead = fileStream.Read(bytes);
+                var memStream = new MemoryStream(bytes);
+                return memStream;
+            }
         }
 
         public bool Contains(string key)

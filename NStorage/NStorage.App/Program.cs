@@ -11,21 +11,35 @@ namespace NStorage.App
     {
 		public static void Main(string[] args)
 		{
+			// Storage folder - folder where NStorage repository files should be created
+			// Data folder - folder with files to store in the storage
+
 			if (args.Length < 2
 				|| !Directory.Exists(args[0])
 				|| !Directory.Exists(args[1]))
 			{
+				throw new ArgumentException("Usage: NStorage.App.exe StorageFolder DataFolder");
+			}
+
+			Run(storageFolder: args[0], dataFolder: args[1], null);
+		}
+
+		public static void Run(string storageFolder, string dataFolder, int? take = 10)
+        {
+			if (!Directory.Exists(dataFolder) || !Directory.Exists(storageFolder))
+			{
 				throw new ArgumentException("Usage: NStorage.App.exe InputFolder StorageFolder");
 			}
 
-			var fileNames = Directory.EnumerateFiles(args[0], "*", SearchOption.AllDirectories).Take(1).ToArray();
+			var files = Directory.EnumerateFiles(dataFolder, "*", SearchOption.AllDirectories);
+			files = take.HasValue ? files.Take(take.Value) : files;
 
 			// Create storage and add data
-			Console.WriteLine("Creating storage from " + args[0]);
+			Console.WriteLine("Creating storage from " + dataFolder);
 			Stopwatch sw = Stopwatch.StartNew();
-			using (var storage = new BinaryStorage(new StorageConfiguration() { WorkingFolder = args[1] }))
+			using (var storage = new BinaryStorage(new StorageConfiguration() { WorkingFolder = storageFolder }))
 			{
-				fileNames
+				files
 					.AsParallel().WithDegreeOfParallelism(4).ForAll(s =>
 					{
 						AddFile(storage, s);
@@ -37,9 +51,9 @@ namespace NStorage.App
 			// Open storage and read data
 			Console.WriteLine("Verifying data");
 			sw = Stopwatch.StartNew();
-			using (var storage = new BinaryStorage(new StorageConfiguration() { WorkingFolder = args[1] }))
+			using (var storage = new BinaryStorage(new StorageConfiguration() { WorkingFolder = storageFolder }))
 			{
-				fileNames
+				files
 					.AsParallel().WithDegreeOfParallelism(4).ForAll(s =>
 					{
 						using (var resultStream = storage.Get(s))
