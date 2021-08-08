@@ -24,12 +24,14 @@ namespace NStorage.App
 			Run(storageFolder: args[0], dataFolder: args[1], null);
 		}
 
-		public static void Run(string storageFolder, string dataFolder, int? take = 10)
+		public static void Run(string storageFolder, string dataFolder, int? take = 10, StorageConfiguration storageConfiguration = null)
         {
 			if (!Directory.Exists(dataFolder) || !Directory.Exists(storageFolder))
 			{
 				throw new ArgumentException("Usage: NStorage.App.exe InputFolder StorageFolder");
 			}
+
+			storageConfiguration = storageConfiguration ?? new StorageConfiguration() { WorkingFolder = storageFolder };
 
 			var files = Directory.EnumerateFiles(dataFolder, "*", SearchOption.AllDirectories);
 			files = take.HasValue ? files.Take(take.Value) : files;
@@ -37,7 +39,7 @@ namespace NStorage.App
 			// Create storage and add data
 			Console.WriteLine("Creating storage from " + dataFolder);
 			Stopwatch sw = Stopwatch.StartNew();
-			using (var storage = new BinaryStorage(new StorageConfiguration() { WorkingFolder = storageFolder }))
+			using (var storage = new BinaryStorage(storageConfiguration))
 			{
 				files
 					.AsParallel().WithDegreeOfParallelism(4).ForAll(s =>
@@ -51,7 +53,7 @@ namespace NStorage.App
 			// Open storage and read data
 			Console.WriteLine("Verifying data");
 			sw = Stopwatch.StartNew();
-			using (var storage = new BinaryStorage(new StorageConfiguration() { WorkingFolder = storageFolder }))
+			using (var storage = new BinaryStorage(storageConfiguration))
 			{
 				files
 					.AsParallel().WithDegreeOfParallelism(4).ForAll(s =>

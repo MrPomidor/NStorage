@@ -30,5 +30,15 @@ namespace NStorage
         /// Folder where implementation should store Index and Storage File
         /// </summary>
         public string WorkingFolder { get; set; }
+
+        // TODO docs
+        // TODO helper method to set flush mode
+        public IndexFlushMode IndexFlushMode { get; set; } = IndexFlushMode.AtOnce;
+    }
+
+    public enum IndexFlushMode
+    {
+        AtOnce,
+        Deferred
     }
 }

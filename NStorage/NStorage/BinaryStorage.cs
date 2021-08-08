@@ -9,6 +9,8 @@ using Newtonsoft.Json;
 using NStorage.DataStructure;
 using NStorage.Exceptions;
 using Index = NStorage.DataStructure.Index;
+using System.Diagnostics;
+using System.Timers;
 
 namespace NStorage
 {
@@ -25,6 +27,10 @@ namespace NStorage
 
         private readonly FileStream _storageFileStream;
         private readonly FileStream _indexFileStream;
+
+        private readonly IndexFlushMode _flushMode;
+        private const int DefaultIndexFlushIntervalMiliseconds = 100;
+        private readonly Timer? _indexFlushTimer;
 
         public BinaryStorage(StorageConfiguration configuration)
         {
@@ -72,13 +78,32 @@ namespace NStorage
             catch (Exception ex)
             {
                 // TODO log it somewhere
-                DisposeInternal(flushIndex: false);
+                DisposeInternal(disposing: false, flushBuffers: false);
 
                 throw;
             }
 
+            _flushMode = configuration.IndexFlushMode;
+            //_flushInterval = TimeSpan.FromMilliseconds(100);
+            if (_flushMode == IndexFlushMode.Deferred)
+            {
+                _indexFlushTimer = new Timer(DefaultIndexFlushIntervalMiliseconds);
+                _indexFlushTimer.AutoReset = true;
+                _indexFlushTimer.Elapsed += IndexFlushTimer_Elapsed;
+                _indexFlushTimer.Start();
+            }
             // TODO check if storage file length is expected
             // TODO lock storage and index files for current process
+        }
+
+        private void IndexFlushTimer_Elapsed(object sender, ElapsedEventArgs e)
+        {
+            FlushIndex();
+        }
+
+        ~BinaryStorage()
+        {
+            DisposeInternal(disposing: false, flushBuffers: true);
         }
 
         private Index DeserializeIndex()
@@ -111,11 +136,56 @@ namespace NStorage
                 throw new StorageCorruptedException($"Storage length is not as expected in summ of index data records. FileLength {storageLength}, expected {expectedStorageLengthBytes}");
         }
 
+        public void Add(string key, Stream data, StreamInfo parameters)
+        {
+            EnsureNotDisposed();
+
+            EnsureKeyNotExist(key);
+
+            (var startPosition, var length) = AppendToStorage(data, parameters);
+
+            var record = new IndexRecord(key, new DataReference { StreamStart = startPosition, Length = length }, new DataProperties());
+            _recordsCache.TryAdd(key, record);
+
+            if (_flushMode == IndexFlushMode.AtOnce)
+            {
+                FlushIndex();
+            }
+        }
+
+        private Stream GetProcessedStream(Stream data, StreamInfo parameters)
+        {
+            var memStream = new MemoryStream();
+            data.CopyTo(memStream);
+            memStream.Seek(0, SeekOrigin.Begin);
+            return memStream;
+        }
+
+        private (long startPosition, long length) AppendToStorage(Stream inputData, StreamInfo parameters)
+        {
+            using (var dataStream = GetProcessedStream(inputData, parameters))
+            {
+                var fileStream = _storageFileStream;
+                long streamLength = dataStream.Length;
+
+                lock (this)
+                {
+                    long startPosition = fileStream.Length;
+                    fileStream.Seek(fileStream.Length, SeekOrigin.Begin);
+                    dataStream.CopyTo(fileStream);
+                    fileStream.Flush();
+
+                    return (startPosition, length: streamLength);
+                }
+            }
+        }
+
         private void FlushIndex()
         {
             var index = new Index { Records = _recordsCache.Values.OrderBy(x => x.DataReference.StreamStart).ToList() };
             var indexSerialized = JsonConvert.SerializeObject(index);
             var bytes = Encoding.UTF8.GetBytes(indexSerialized);
+
             lock (this)
             {
                 _indexFileStream.Seek(0, SeekOrigin.Begin);
@@ -123,46 +193,6 @@ namespace NStorage
                 _indexFileStream.Write(bytes);
                 _indexFileStream.Flush();
             }
-        }
-
-        public void Add(string key, Stream data, StreamInfo parameters)
-        {
-            EnsureKeyNotExist(key);
-
-            long startPosition;
-            long length;
-            lock (this)
-            {
-                (startPosition, length) = AppendStreamToStorage(data, parameters);
-                var record = new IndexRecord(key, new DataReference { StreamStart = startPosition, Length = length }, new DataProperties());
-                _recordsCache.TryAdd(key, record);
-            }
-
-            FlushIndex();
-        }
-
-        private (long startPosition, long length) AppendStreamToStorage(Stream data, StreamInfo parameters)
-        {
-            long startPosition = 0;
-            long streamLength = 0;
-
-            using (var memStream = new MemoryStream())
-            {
-                data.CopyTo(memStream);
-                memStream.Seek(0, SeekOrigin.Begin);
-
-                streamLength = memStream.Length;
-
-                var fileStream = _storageFileStream;
-
-                startPosition = fileStream.Length;
-                fileStream.Seek(fileStream.Length, SeekOrigin.Begin);
-                memStream.CopyTo(fileStream);
-
-                fileStream.Flush();
-            }
-
-            return (startPosition, length: streamLength);
         }
 
         private void EnsureKeyNotExist(string key)
@@ -173,6 +203,8 @@ namespace NStorage
 
         public Stream Get(string key)
         {
+            EnsureNotDisposed();
+
             if (!Contains(key, out var recordData))
                 throw new KeyNotFoundException(key);
 
@@ -190,6 +222,8 @@ namespace NStorage
 
         public bool Contains(string key)
         {
+            EnsureNotDisposed();
+
             return Contains(key, out _);
         }
 
@@ -198,13 +232,24 @@ namespace NStorage
             return _recordsCache.TryGetValue(key, out recordData);
         }
 
-        private void DisposeInternal(bool flushIndex)
+        private void EnsureNotDisposed()
         {
-            if (flushIndex)
+            if (_isDisposed)
+                throw new ObjectDisposedException(GetType().FullName);
+        }
+
+        private bool _isDisposed = false;
+        private void DisposeInternal(bool disposing, bool flushBuffers)
+        {
+            if (_isDisposed)
+                return;
+
+            if (flushBuffers)
             {
                 try
                 {
                     FlushIndex();
+                    // TODO flush storage
                     // TODO close all file blockings
                 }
                 catch (Exception ex)
@@ -217,16 +262,25 @@ namespace NStorage
             {
                 _indexFileStream?.Dispose();
                 _storageFileStream?.Dispose();
+                if (_indexFlushTimer != null)
+                {
+                    _indexFlushTimer.Elapsed -= IndexFlushTimer_Elapsed;
+                    _indexFlushTimer.Dispose();
+                }
             }
             catch (Exception ex)
             {
                 // TODO what to do if file could not be flushed ?
             }
+
+            _isDisposed = true;
         }
 
         public void Dispose()
         {
-            DisposeInternal(flushIndex: true);
+            DisposeInternal(disposing: true, flushBuffers: true);
+
+            GC.SuppressFinalize(this);
         }
     }
 }

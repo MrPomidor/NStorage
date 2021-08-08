@@ -28,11 +28,34 @@ namespace NStorage.Tests.Integration
             (_storageFolder, _dataFolder) = GetMainArgs(_tempTestFolder);
         }
 
-        [Fact]
-        public void Test()
+        private static readonly int[] RecordsToTake = new[]
         {
+            10,
+            10
+        };
+        private static readonly IndexFlushMode[] IndexFlushModes = new[]
+        {
+            IndexFlushMode.AtOnce,
+            IndexFlushMode.Deferred
+        };
+        private static Func<string, int, StorageConfiguration> GetStorageConfiguration = (storageFolder, index) =>
+        {
+            return new StorageConfiguration
+            {
+                WorkingFolder = storageFolder,
+                IndexFlushMode = IndexFlushModes[index]
+            };
+        };
+
+        [Theory]
+        [InlineData(0)]
+        [InlineData(1)]
+        public void Test(int dataSetIndex)
+        {
+            var configuration = GetStorageConfiguration(_storageFolder, dataSetIndex);
+            var recordCount = RecordsToTake[dataSetIndex];
             // act
-            NStorage.App.Program.Run(storageFolder: _storageFolder, dataFolder: _dataFolder, take: 10);
+            NStorage.App.Program.Run(storageFolder: _storageFolder, dataFolder: _dataFolder, take: recordCount, storageConfiguration: configuration);
         }
 
         // TODO common class
