@@ -10,7 +10,6 @@ namespace NStorage.Tests.Benchmarks
     [SimpleJob(RuntimeMoniker.Net60)]
     public class Write
     {
-        //[Params(10)]
         [Params(1000)]
         public int FilesCount;
 
@@ -84,7 +83,7 @@ namespace NStorage.Tests.Benchmarks
         }
 
         [Benchmark]
-        public void ParalellWrite()
+        public void ParallelWrite()
         {
             using (var storage = new BinaryStorage(new StorageConfiguration() { WorkingFolder = _tempStorageFolderName }))
             {
@@ -94,6 +93,18 @@ namespace NStorage.Tests.Benchmarks
                         storage.Add(s.fileName, s.stream, StreamInfo.Empty);
                     });
 
+            }
+        }
+
+        [Benchmark]
+        public void SequentialWrite()
+        {
+            using (var storage = new BinaryStorage(new StorageConfiguration() { WorkingFolder = _tempStorageFolderName }))
+            {
+                foreach(var s in _fileStreams)
+                {
+                    storage.Add(s.fileName, s.stream, StreamInfo.Empty);
+                }
             }
         }
     }

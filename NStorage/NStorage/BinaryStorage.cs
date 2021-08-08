@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Collections.Concurrent;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -20,7 +21,7 @@ namespace NStorage
         private readonly string _indexFilePath;
         private readonly string _storageFilePath;
 
-        private readonly Index _index;
+        private readonly ConcurrentDictionary<string, IndexRecord> _recordsCache;
 
         private readonly FileStream _storageFileStream;
         private readonly FileStream _indexFileStream;
@@ -62,10 +63,11 @@ namespace NStorage
                     Options = FileOptions.RandomAccess
                 });
 
-                _index = DeserializeIndex(); // for more performace index file should be stored in memory
+                var index = DeserializeIndex(); // for more performace index file should be stored in memory
+                _recordsCache = new ConcurrentDictionary<string, IndexRecord>(index.Records.ToDictionary(item => item.Key));
 
-                CheckIndexNotCorrupted();
-                CheckStorageNotCorrupted();
+                CheckIndexNotCorrupted(index);
+                CheckStorageNotCorrupted(index);
             }
             catch (Exception ex)
             {
@@ -86,9 +88,8 @@ namespace NStorage
             return JsonConvert.DeserializeObject<Index>(indexAsTest) ?? new Index();
         }
 
-        private void CheckIndexNotCorrupted()
+        private void CheckIndexNotCorrupted(Index index)
         {
-            var index = _index;
             long lastEndPosition = 0;
             for (int i = 0; i < index.Records.Count; i++)
             {
@@ -102,9 +103,9 @@ namespace NStorage
             }
         }
 
-        private void CheckStorageNotCorrupted()
+        private void CheckStorageNotCorrupted(Index index)
         {
-            var expectedStorageLengthBytes = _index.Records.Sum(x => x.DataReference.Length);
+            var expectedStorageLengthBytes = index.Records.Sum(x => x.DataReference.Length);
             var storageLength = new FileInfo(_storageFilePath).Length;
             if (storageLength != expectedStorageLengthBytes)
                 throw new StorageCorruptedException($"Storage length is not as expected in summ of index data records. FileLength {storageLength}, expected {expectedStorageLengthBytes}");
@@ -112,31 +113,32 @@ namespace NStorage
 
         private void FlushIndex()
         {
-            var indexSerialized = JsonConvert.SerializeObject(_index);
+            var index = new Index { Records = _recordsCache.Values.OrderBy(x => x.DataReference.StreamStart).ToList() };
+            var indexSerialized = JsonConvert.SerializeObject(index);
             var bytes = Encoding.UTF8.GetBytes(indexSerialized);
-
-            _indexFileStream.Seek(0, SeekOrigin.Begin);
-            _indexFileStream.SetLength(0);
-
-            _indexFileStream.Write(bytes);
-
-            _indexFileStream.Flush();
+            lock (this)
+            {
+                _indexFileStream.Seek(0, SeekOrigin.Begin);
+                _indexFileStream.SetLength(0);
+                _indexFileStream.Write(bytes);
+                _indexFileStream.Flush();
+            }
         }
 
         public void Add(string key, Stream data, StreamInfo parameters)
         {
+            EnsureKeyNotExist(key);
+
+            long startPosition;
+            long length;
             lock (this)
             {
-                EnsureKeyNotExist(key);
-
-                (long startPosition, long length) = AppendStreamToStorage(data, parameters);
-
-                var index = _index;
+                (startPosition, length) = AppendStreamToStorage(data, parameters);
                 var record = new IndexRecord(key, new DataReference { StreamStart = startPosition, Length = length }, new DataProperties());
-                index.Records.Add(record);
-
-                FlushIndex();
+                _recordsCache.TryAdd(key, record);
             }
+
+            FlushIndex();
         }
 
         private (long startPosition, long length) AppendStreamToStorage(Stream data, StreamInfo parameters)
@@ -171,28 +173,29 @@ namespace NStorage
 
         public Stream Get(string key)
         {
+            if (!Contains(key, out var recordData))
+                throw new KeyNotFoundException(key);
+
+            var fileStream = _storageFileStream;
+            var bytes = new byte[recordData.DataReference.Length];
             lock (this)
             {
-                if (!Contains(key))
-                    throw new KeyNotFoundException(key);
-
-                var recordData = _index.Records.Single(x => x.Key == key);
-
-                var fileStream = _storageFileStream;
-
                 fileStream.Seek(recordData.DataReference.StreamStart, SeekOrigin.Begin);
-
-                var bytes = new byte[recordData.DataReference.Length];
                 var bytesRead = fileStream.Read(bytes);
-                var memStream = new MemoryStream(bytes);
-                return memStream;
             }
+            // TODO check bytes read count
+            var memStream = new MemoryStream(bytes);
+            return memStream;
         }
 
         public bool Contains(string key)
         {
-            // TODO check with concurrency
-            return _index.Records.Any(x => x.Key == key);
+            return Contains(key, out _);
+        }
+
+        private bool Contains(string key, out IndexRecord recordData)
+        {
+            return _recordsCache.TryGetValue(key, out recordData);
         }
 
         private void DisposeInternal(bool flushIndex)
