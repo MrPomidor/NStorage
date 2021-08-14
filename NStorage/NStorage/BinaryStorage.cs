@@ -11,6 +11,8 @@ using NStorage.Exceptions;
 using Index = NStorage.DataStructure.Index;
 using System.Diagnostics;
 using System.Timers;
+using System.IO.Pipes;
+using System.Threading;
 
 namespace NStorage
 {
@@ -25,12 +27,26 @@ namespace NStorage
 
         private readonly ConcurrentDictionary<string, IndexRecord> _recordsCache;
 
+        private long _storageFileLength;
         private readonly FileStream _storageFileStream;
         private readonly FileStream _indexFileStream;
 
-        private readonly IndexFlushMode _flushMode;
-        private const int DefaultIndexFlushIntervalMiliseconds = 100;
-        private readonly Timer? _indexFlushTimer;
+        private readonly FlushMode? _flushMode;
+        private const int DefaultFlushIntervalMiliseconds = 100;
+        //private readonly Timer? _flushTimer;
+        //private long _flushStreamLength;
+        //private MemoryStream? _storageFlushStream;
+        //private ConcurrentDictionary<string, IndexRecord>? _tempRecordsCache;
+        // TODO temp sync object
+        //private readonly object _flushLock = new object();
+
+        private readonly ConcurrentDictionary<string, (Memory<byte> memory, DataProperties properties)?>? _tempRecordsCache;
+        private readonly ConcurrentQueue<(string key, (Memory<byte> memory, DataProperties properties))>? _recordsQueue;
+
+        private CancellationTokenSource _source = new CancellationTokenSource();
+        private CancellationToken _token;
+
+        private static ManualResetEvent _flushDisposed = new ManualResetEvent(false);
 
         public BinaryStorage(StorageConfiguration configuration)
         {
@@ -74,6 +90,10 @@ namespace NStorage
 
                 CheckIndexNotCorrupted(index);
                 CheckStorageNotCorrupted(index);
+
+                _storageFileLength = _storageFileStream.Length;
+                _storageFileStream.Seek(_storageFileLength, SeekOrigin.Begin);
+                // TODO store stream length and current position in field
             }
             catch (Exception ex)
             {
@@ -83,22 +103,24 @@ namespace NStorage
                 throw;
             }
 
-            _flushMode = configuration.IndexFlushMode;
-            //_flushInterval = TimeSpan.FromMilliseconds(100);
-            if (_flushMode == IndexFlushMode.Deferred)
+            _flushMode = configuration.FlushMode;
+            if (_flushMode == FlushMode.Deferred)
             {
-                _indexFlushTimer = new Timer(DefaultIndexFlushIntervalMiliseconds);
-                _indexFlushTimer.AutoReset = true;
-                _indexFlushTimer.Elapsed += IndexFlushTimer_Elapsed;
-                _indexFlushTimer.Start();
+                _tempRecordsCache = new ConcurrentDictionary<string, (Memory<byte> memory, DataProperties properties)?>();
+                _recordsQueue = new ConcurrentQueue<(string key, (Memory<byte> memory, DataProperties properties))>();
+
+                _token = _source.Token;
+                Task.Run(OnTick, _token);
+                //_flushStreamLength = 0;
+                //_storageFlushStream = new MemoryStream();
+                //_tempRecordsCache = new ConcurrentDictionary<string, IndexRecord>();
+                //_flushTimer = new Timer(DefaultFlushIntervalMiliseconds);
+                //_flushTimer.AutoReset = true;
+                //_flushTimer.Elapsed += FlushTimer_Elapsed;
+                //_flushTimer.Start();
             }
             // TODO check if storage file length is expected
             // TODO lock storage and index files for current process
-        }
-
-        private void IndexFlushTimer_Elapsed(object sender, ElapsedEventArgs e)
-        {
-            FlushIndex();
         }
 
         ~BinaryStorage()
@@ -131,6 +153,7 @@ namespace NStorage
         private void CheckStorageNotCorrupted(Index index)
         {
             var expectedStorageLengthBytes = index.Records.Sum(x => x.DataReference.Length);
+            // TODO consider optimization and crop file length if it is greater then expected
             var storageLength = new FileInfo(_storageFilePath).Length;
             if (storageLength != expectedStorageLengthBytes)
                 throw new StorageCorruptedException($"Storage length is not as expected in summ of index data records. FileLength {storageLength}, expected {expectedStorageLengthBytes}");
@@ -140,19 +163,63 @@ namespace NStorage
         {
             EnsureNotDisposed();
 
-            EnsureKeyNotExist(key);
+            EnsureAndBookKey(key);
 
-            (var startPosition, var length) = AppendToStorage(data, parameters);
-
-            var record = new IndexRecord(key, new DataReference { StreamStart = startPosition, Length = length }, new DataProperties());
-            _recordsCache.TryAdd(key, record);
-
-            if (_flushMode == IndexFlushMode.AtOnce)
+            if (_flushMode == FlushMode.AtOnce)
             {
-                FlushIndex();
+                using (var dataStream = GetProcessedStream(data, parameters))
+                {
+                    long streamLength = dataStream.Length;
+
+                    lock (this)
+                    {
+                        var fileStream = _storageFileStream;
+                        long startPosition = _storageFileLength;
+                        //fileStream.Seek(fileStream.Length, SeekOrigin.Begin); // TODO do we need seek here
+                        dataStream.CopyTo(fileStream);
+
+                        var record = new IndexRecord(key, new DataReference { StreamStart = startPosition, Length = streamLength }, new DataProperties());
+                        _recordsCache.AddOrUpdate(key, (_) => record, (_, _) => record);
+
+                        _storageFileLength += streamLength;
+
+                        fileStream.Flush(); // flush stream
+                        FlushIndex();
+                    }
+                }
+            }
+            else if (_flushMode == FlushMode.Deferred)
+            {
+                var dataTuple = GetProcessedMemory(data, parameters);
+
+                _tempRecordsCache!.AddOrUpdate(key, (_) => dataTuple, (_, _) => dataTuple);
+                _recordsQueue.Enqueue((key, dataTuple));
+
+                //using (var dataStream = GetProcessedMemStream(data, parameters))
+                //{
+                //    long streamLength = dataStream.Length;
+                //    Memory<byte> bytes = dataStream;
+                //    lock (_flushLock)
+                //    {
+                //        var tempStream = _storageFlushStream!;
+                //        long startPosition = _flushStreamLength;
+                //        //tempStream.Seek(tempStream.Length, SeekOrigin.Begin); // TODO do we need seek here ?
+                //        dataStream.CopyTo(tempStream);
+
+                //        var record = new IndexRecord(key, new DataReference { StreamStart = startPosition, Length = streamLength }, new DataProperties());
+                //        _tempRecordsCache!.AddOrUpdate(key, (_) => record, (_, _) => record);
+
+                //        _flushStreamLength += streamLength;
+                //    }
+                //}
+            }
+            else
+            {
+                throw new Exception("Bad thisgs happening");
             }
         }
 
+        // TODO remove copy if not needed 
         private Stream GetProcessedStream(Stream data, StreamInfo parameters)
         {
             var memStream = new MemoryStream();
@@ -161,59 +228,186 @@ namespace NStorage
             return memStream;
         }
 
-        private (long startPosition, long length) AppendToStorage(Stream inputData, StreamInfo parameters)
+        private (Memory<byte> memory, DataProperties properties) GetProcessedMemory(Stream data, StreamInfo parameters)
         {
-            using (var dataStream = GetProcessedStream(inputData, parameters))
+            var bytes = new byte[data.Length];
+            data.Read(bytes);
+            //Span<byte> bytes = new Span<byte>(data.Length);
+            //data.Read(bytes);
+            //var memStream = new MemoryStream();
+            //data.CopyTo(memStream);
+            //memStream.Seek(0, SeekOrigin.Begin);
+            return (bytes, new DataProperties());
+        }
+
+        private async Task OnTick()
+        {
+            var processingBuffer = new List<(string key, (Memory<byte> memory, DataProperties properties))>();
+            while (true)
             {
-                var fileStream = _storageFileStream;
-                long streamLength = dataStream.Length;
-
-                lock (this)
+                if (_recordsQueue!.TryDequeue(out var queueItem))
                 {
-                    long startPosition = fileStream.Length;
-                    fileStream.Seek(fileStream.Length, SeekOrigin.Begin);
-                    dataStream.CopyTo(fileStream);
-                    fileStream.Flush();
-
-                    return (startPosition, length: streamLength);
+                    processingBuffer.Add(queueItem);
+                    continue;
                 }
+
+                var newStorageLength = _storageFileLength;
+
+                var keys = new List<string>();
+                using (var dataStream = new MemoryStream())
+                {
+                    foreach (var item in processingBuffer)
+                    {
+                        var key = item.key;
+                        keys.Add(key);
+                        (var memory, var dataProperties) = item.Item2;
+
+                        await dataStream.WriteAsync(memory);
+                        var record = new IndexRecord(key, new DataReference { StreamStart = newStorageLength, Length = memory.Length }, dataProperties);
+                        _recordsCache.AddOrUpdate(key, (_) => record, (_, _) => record);
+                        newStorageLength += memory.Length;
+                    }
+
+                    dataStream.Seek(0, SeekOrigin.Begin);
+
+                    lock (this)
+                    {
+                        var fileStream = _storageFileStream;
+                        dataStream.CopyTo(fileStream);
+
+                        _storageFileLength = newStorageLength;
+
+                        // TODO common method
+                        fileStream.Flush(); // flush stream
+                        FlushIndex();
+                    }
+                }
+
+                foreach (var key in keys)
+                {
+                    _tempRecordsCache!.Remove(key, out _);
+                }
+
+                processingBuffer.Clear();
+
+                if (_token.IsCancellationRequested)
+                {
+                    _flushDisposed.Set();
+                    return;
+                }
+
+                await Task.Delay(DefaultFlushIntervalMiliseconds);
             }
         }
 
         private void FlushIndex()
         {
-            var index = new Index { Records = _recordsCache.Values.OrderBy(x => x.DataReference.StreamStart).ToList() };
+            var index = new Index { Records = _recordsCache.Values.ToArray().Where(x => x != null).OrderBy(x => x.DataReference.StreamStart).ToList() };
             var indexSerialized = JsonConvert.SerializeObject(index);
             var bytes = Encoding.UTF8.GetBytes(indexSerialized);
 
-            lock (this)
+            // TODO find way to rewrite using single operation system method
+            _indexFileStream.Seek(0, SeekOrigin.Begin);
+            _indexFileStream.SetLength(0);
+            _indexFileStream.Write(bytes);
+            _indexFileStream.Flush();
+        }
+
+        //private void FlushTimer_Elapsed(object sender, ElapsedEventArgs e)
+        //{
+        //    FlushFromTemp();
+        //}
+
+        //private void FlushFromTemp()
+        //{
+        //    lock (this)
+        //    {
+        //        MemoryStream? flushStream = null;
+        //        try
+        //        {
+        //            ConcurrentDictionary<string, IndexRecord> recordsCache;
+        //            lock (_flushLock)
+        //            {
+        //                flushStream = _storageFlushStream!;
+        //                _storageFlushStream = new MemoryStream();
+        //                _flushStreamLength = 0;
+        //                recordsCache = _tempRecordsCache!;
+        //                _tempRecordsCache = new ConcurrentDictionary<string, IndexRecord>();
+        //            }
+
+        //            var storageLength = _storageFileLength;
+
+        //            flushStream.Seek(0, SeekOrigin.Begin);
+        //            //_storageFileStream.Seek(storageLength, SeekOrigin.Begin); // TODO do we need seek here ?
+        //            flushStream.CopyTo(_storageFileStream);
+
+        //            _storageFileLength += flushStream.Length;
+
+        //            var indexRecords = recordsCache!.Values.ToArray().Where(x => x != null).OrderBy(x => x.DataReference.StreamStart).ToList();
+
+        //            foreach (var item in indexRecords)
+        //            {
+        //                item.DataReference.StreamStart += storageLength;
+        //                _recordsCache.TryAdd(item.Key, item);
+        //            }
+
+        //            // TODO distinct method
+        //            _storageFileStream.Flush();
+        //            FlushIndex();
+        //        }
+        //        finally
+        //        {
+        //            flushStream?.Dispose();
+        //        }
+        //    }
+        //}
+
+        private void EnsureAndBookKey(string key)
+        {
+            if (_flushMode == FlushMode.AtOnce)
             {
-                _indexFileStream.Seek(0, SeekOrigin.Begin);
-                _indexFileStream.SetLength(0);
-                _indexFileStream.Write(bytes);
-                _indexFileStream.Flush();
+                if (!_recordsCache.TryAdd(key, null))
+                {
+                    throw new ArgumentException($"Key {key} already exists in storage");
+                }
+            }
+            else if (_flushMode == FlushMode.Deferred)
+            {
+                if (_recordsCache.TryGetValue(key, out _) || !_tempRecordsCache!.TryAdd(key, null))
+                {
+                    throw new ArgumentException($"Key {key} already exists in storage");
+                }
+            }
+            else
+            {
+                throw new Exception("Bad things");
             }
         }
 
-        private void EnsureKeyNotExist(string key)
-        {
-            if (Contains(key))
-                throw new ArgumentException($"Key {key} already exists in storage");
-        }
-
+        // TODO get from temp streams also !
         public Stream Get(string key)
         {
+            // TODO predict situation, when data is not in temp memory, but not in main memory yet
             EnsureNotDisposed();
 
-            if (!Contains(key, out var recordData))
+            if (_flushMode == FlushMode.Deferred && _tempRecordsCache!.TryGetValue(key, out var record) && record != null)
+            {
+                // TODO perform stream modifications
+                var memoryStream = new MemoryStream(record.Value.memory.ToArray());
+                return memoryStream;
+            }
+
+            if (!_recordsCache.TryGetValue(key, out var recordData) || recordData == null)
                 throw new KeyNotFoundException(key);
 
             var fileStream = _storageFileStream;
-            var bytes = new byte[recordData.DataReference.Length];
+            var bytes = new byte[recordData!.DataReference.Length];
             lock (this)
             {
+                var fileStreamLength = _storageFileLength;
                 fileStream.Seek(recordData.DataReference.StreamStart, SeekOrigin.Begin);
                 var bytesRead = fileStream.Read(bytes);
+                fileStream.Seek(fileStreamLength, SeekOrigin.Begin);
             }
             // TODO check bytes read count
             var memStream = new MemoryStream(bytes);
@@ -224,31 +418,75 @@ namespace NStorage
         {
             EnsureNotDisposed();
 
-            return Contains(key, out _);
-        }
-
-        private bool Contains(string key, out IndexRecord recordData)
-        {
-            return _recordsCache.TryGetValue(key, out recordData);
+            if (_flushMode == FlushMode.Deferred && _tempRecordsCache!.TryGetValue(key, out var value) && value != null)
+                return true;
+            return _recordsCache.TryGetValue(key, out var recordData) && recordData != null;
         }
 
         private void EnsureNotDisposed()
         {
-            if (_isDisposed)
+            if (_isDisposed || _isDisposing)
                 throw new ObjectDisposedException(GetType().FullName);
         }
 
-        private bool _isDisposed = false;
+        private volatile bool _isDisposed = false;
+        private volatile bool _isDisposing = false;
         private void DisposeInternal(bool disposing, bool flushBuffers)
         {
             if (_isDisposed)
                 return;
 
+            _isDisposing = true;
+
+            //if (_flushMode == FlushMode.Deferred)
+            //{
+            //    _source.Cancel();
+            //    _flushDisposed.WaitOne();
+
+            //    _tempRecordsCache!.Clear();
+            //    _recordsQueue!.Clear();
+            //}
+
+            //if (_flushTimer != null)
+            //{
+            //    try
+            //    {
+            //        _flushTimer.Stop();
+            //        _flushTimer.Elapsed -= FlushTimer_Elapsed;
+            //        _flushTimer.Dispose();
+            //    }
+            //    catch (Exception ex)
+            //    {
+            //        // TODO what to do if file could not be flushed ?
+            //    }
+            //}
+
             if (flushBuffers)
             {
                 try
                 {
-                    FlushIndex();
+                    // TODO flush buffers in different way, depending on the mode
+                    if (_flushMode == FlushMode.AtOnce)
+                    {
+                        // TODO unite in single method
+                        lock (this)
+                        {
+                            _storageFileStream.Flush();
+                            FlushIndex();
+                        }
+                    }
+                    else if (_flushMode == FlushMode.Deferred)
+                    {
+                        _source.Cancel();
+                        _flushDisposed.WaitOne();
+
+                        _tempRecordsCache!.Clear();
+                        _recordsQueue!.Clear();
+                    }
+                    else
+                    {
+                        throw new Exception("Bad thisgs happening");
+                    }
                     // TODO flush storage
                     // TODO close all file blockings
                 }
@@ -262,11 +500,7 @@ namespace NStorage
             {
                 _indexFileStream?.Dispose();
                 _storageFileStream?.Dispose();
-                if (_indexFlushTimer != null)
-                {
-                    _indexFlushTimer.Elapsed -= IndexFlushTimer_Elapsed;
-                    _indexFlushTimer.Dispose();
-                }
+                _flushDisposed?.Dispose();
             }
             catch (Exception ex)
             {
@@ -274,6 +508,7 @@ namespace NStorage
             }
 
             _isDisposed = true;
+            _isDisposing = false;
         }
 
         public void Dispose()

@@ -33,12 +33,13 @@ namespace NStorage
 
         // TODO docs
         // TODO helper method to set flush mode
-        public IndexFlushMode IndexFlushMode { get; set; } = IndexFlushMode.AtOnce;
+        public FlushMode FlushMode { get; set; } = FlushMode.AtOnce;
     }
 
-    public enum IndexFlushMode
+    public enum FlushMode
     {
         AtOnce,
         Deferred
+        // TODO manual (flush only on manual)
     }
 }

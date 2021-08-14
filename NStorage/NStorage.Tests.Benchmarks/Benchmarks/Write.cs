@@ -13,8 +13,8 @@ namespace NStorage.Tests.Benchmarks
         [Params(1000)]
         public int FilesCount;
 
-        [Params(IndexFlushMode.AtOnce, IndexFlushMode.Deferred)]
-        public IndexFlushMode IndexFlushMode;
+        [Params(FlushMode.AtOnce, FlushMode.Deferred)]
+        public FlushMode IndexFlushMode;
 
         private string _tempStorageFolderName;
         private (Stream stream, string fileName)[] _fileStreams;
@@ -88,7 +88,7 @@ namespace NStorage.Tests.Benchmarks
         [Benchmark]
         public void ParallelWrite()
         {
-            using (var storage = new BinaryStorage(new StorageConfiguration() { WorkingFolder = _tempStorageFolderName, IndexFlushMode = IndexFlushMode }))
+            using (var storage = new BinaryStorage(new StorageConfiguration() { WorkingFolder = _tempStorageFolderName, FlushMode = IndexFlushMode }))
             {
                 _fileStreams
                     .AsParallel().WithDegreeOfParallelism(4).ForAll(s =>
@@ -102,7 +102,7 @@ namespace NStorage.Tests.Benchmarks
         [Benchmark]
         public void SequentialWrite()
         {
-            using (var storage = new BinaryStorage(new StorageConfiguration() { WorkingFolder = _tempStorageFolderName, IndexFlushMode = IndexFlushMode }))
+            using (var storage = new BinaryStorage(new StorageConfiguration() { WorkingFolder = _tempStorageFolderName, FlushMode = IndexFlushMode }))
             {
                 foreach(var s in _fileStreams)
                 {

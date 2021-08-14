@@ -33,17 +33,17 @@ namespace NStorage.Tests.Integration
             10,
             10
         };
-        private static readonly IndexFlushMode[] IndexFlushModes = new[]
+        private static readonly FlushMode[] IndexFlushModes = new[]
         {
-            IndexFlushMode.AtOnce,
-            IndexFlushMode.Deferred
+            FlushMode.AtOnce,
+            FlushMode.Deferred
         };
         private static Func<string, int, StorageConfiguration> GetStorageConfiguration = (storageFolder, index) =>
         {
             return new StorageConfiguration
             {
                 WorkingFolder = storageFolder,
-                IndexFlushMode = IndexFlushModes[index]
+                FlushMode = IndexFlushModes[index]
             };
         };
 
