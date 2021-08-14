@@ -8,6 +8,7 @@ namespace NStorage.DataStructure
 {
     public class DataProperties
     {
+        public bool IsCompressed { get; set; }
         // TODO isCompressed
         // TODO isEncrypted
         // etc

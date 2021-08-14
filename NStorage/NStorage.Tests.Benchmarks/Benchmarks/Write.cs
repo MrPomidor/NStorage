@@ -1,4 +1,6 @@
 ﻿using BenchmarkDotNet.Attributes;
+//using BenchmarkDotNet.Diagnostics.Windows.Configs;
+using BenchmarkDotNet.Diagnostics.Windows.Configs;
 using BenchmarkDotNet.Jobs;
 using System;
 using System.IO;
@@ -7,14 +9,19 @@ using System.Linq;
 namespace NStorage.Tests.Benchmarks
 {
     // TODO target count, launch count ?
-    [SimpleJob(RuntimeMoniker.Net60)]
+    //[EtwProfiler]
+    [SimpleJob(RuntimeMoniker.Net60, targetCount:20)]
     public class Write
     {
         [Params(1000)]
         public int FilesCount;
 
         [Params(FlushMode.AtOnce, FlushMode.Deferred)]
+        //[Params(FlushMode.Deferred)]
         public FlushMode IndexFlushMode;
+
+        [Params(true, false)]
+        public bool IsCompressed;
 
         private string _tempStorageFolderName;
         private (Stream stream, string fileName)[] _fileStreams;
@@ -85,15 +92,23 @@ namespace NStorage.Tests.Benchmarks
             Directory.Delete(tempTestFolder, true);
         }
 
+        private StreamInfo GetStreamInfo()
+        {
+            var streamInfo = StreamInfo.Empty;
+            streamInfo.IsCompressed = IsCompressed;
+            return streamInfo;
+        }
+
         [Benchmark]
         public void ParallelWrite()
         {
+            var streamInfo = GetStreamInfo();
             using (var storage = new BinaryStorage(new StorageConfiguration() { WorkingFolder = _tempStorageFolderName, FlushMode = IndexFlushMode }))
             {
                 _fileStreams
                     .AsParallel().WithDegreeOfParallelism(4).ForAll(s =>
                     {
-                        storage.Add(s.fileName, s.stream, StreamInfo.Empty);
+                        storage.Add(s.fileName, s.stream, streamInfo);
                     });
 
             }
@@ -102,11 +117,12 @@ namespace NStorage.Tests.Benchmarks
         [Benchmark]
         public void SequentialWrite()
         {
+            var streamInfo = GetStreamInfo();
             using (var storage = new BinaryStorage(new StorageConfiguration() { WorkingFolder = _tempStorageFolderName, FlushMode = IndexFlushMode }))
             {
                 foreach(var s in _fileStreams)
                 {
-                    storage.Add(s.fileName, s.stream, StreamInfo.Empty);
+                    storage.Add(s.fileName, s.stream, streamInfo);
                 }
             }
         }

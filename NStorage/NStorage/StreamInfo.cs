@@ -15,7 +15,7 @@ namespace NStorage
         /// specified, but actual hash of the data is different
         /// storage should throw ArgumentException
         /// </summary>
-        public byte[] Hash { get; set; }
+        //public byte[] Hash { get; set; }
 
         /// <summary>
         /// True if stream is compressed. Default false
@@ -28,6 +28,8 @@ namespace NStorage
         /// of the Stream is different the storage
         /// should throw ArgumentException
         /// </summary>
-        public long? Length { get; set; }
+        //public long? Length { get; set; }
+
+        // TODO is encrypted
     }
 }

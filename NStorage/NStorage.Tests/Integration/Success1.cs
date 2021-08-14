@@ -11,6 +11,7 @@ namespace NStorage.Tests.Integration
 {
     // TODO rename into "First write all then read all (sequentially)"
 
+    [Collection("Sequential")]
     /// <summary>
     /// Test encapsulate general success scenario, whewre several threads are reading and writing from storage in a paralell
     /// All data should be saved correctly without losses
@@ -31,12 +32,23 @@ namespace NStorage.Tests.Integration
         private static readonly int[] RecordsToTake = new[]
         {
             10,
-            10
+            10,
+            10,
+            10,
         };
         private static readonly FlushMode[] IndexFlushModes = new[]
         {
             FlushMode.AtOnce,
-            FlushMode.Deferred
+            FlushMode.Deferred,
+            FlushMode.AtOnce,
+            FlushMode.Deferred,
+        };
+        private static readonly StreamInfo[] StreamInfos = new[]
+        {
+            StreamInfo.Empty,
+            StreamInfo.Empty,
+            new StreamInfo() { IsCompressed = true },
+            new StreamInfo() { IsCompressed = true },
         };
         private static Func<string, int, StorageConfiguration> GetStorageConfiguration = (storageFolder, index) =>
         {
@@ -50,12 +62,15 @@ namespace NStorage.Tests.Integration
         [Theory]
         [InlineData(0)]
         [InlineData(1)]
+        [InlineData(2)]
+        [InlineData(3)]
         public void Test(int dataSetIndex)
         {
             var configuration = GetStorageConfiguration(_storageFolder, dataSetIndex);
             var recordCount = RecordsToTake[dataSetIndex];
+            var streamInfo = StreamInfos[dataSetIndex];
             // act
-            NStorage.App.Program.Run(storageFolder: _storageFolder, dataFolder: _dataFolder, take: recordCount, storageConfiguration: configuration);
+            NStorage.App.Program.Run(storageFolder: _storageFolder, dataFolder: _dataFolder, take: recordCount, storageConfiguration: configuration, streamInfo: streamInfo);
         }
 
         // TODO common class

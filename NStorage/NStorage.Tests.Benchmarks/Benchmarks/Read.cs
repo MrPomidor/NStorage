@@ -9,7 +9,7 @@ using System.Threading.Tasks;
 
 namespace NStorage.Tests.Benchmarks.Benchmarks
 {
-    [SimpleJob(RuntimeMoniker.Net60)]
+    [SimpleJob(RuntimeMoniker.Net60, targetCount: 20)]
     public class Read
     {
         [Params(5000)]
@@ -18,6 +18,9 @@ namespace NStorage.Tests.Benchmarks.Benchmarks
         [Params(FlushMode.AtOnce, FlushMode.Deferred)]
         public FlushMode IndexFlushMode;
 
+        [Params(true, false)]
+        public bool IsCompressed;
+
         private string _tempStorageFolderName;
         private string[] _fileNames;
 
@@ -25,6 +28,8 @@ namespace NStorage.Tests.Benchmarks.Benchmarks
         public void GlobalSetup()
         {
             _tempStorageFolderName = GetTempTestFolderPath("Benchmarks/Write");
+            var streamInfo = StreamInfo.Empty;
+            streamInfo.IsCompressed = IsCompressed;
 
             using (var storage = new BinaryStorage(new StorageConfiguration() { WorkingFolder = _tempStorageFolderName }))
             {
@@ -35,7 +40,7 @@ namespace NStorage.Tests.Benchmarks.Benchmarks
                     var fileName = files[i];
                     using (var fileStream = new FileStream(fileName, FileMode.Open))
                     {
-                        storage.Add(fileName, fileStream, StreamInfo.Empty);
+                        storage.Add(fileName, fileStream, streamInfo);
                     }
                     _fileNames[i] = fileName;
                 }
