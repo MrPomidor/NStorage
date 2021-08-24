@@ -29,13 +29,32 @@ namespace NStorage
         /// <summary>
         /// Folder where implementation should store Index and Storage File
         /// </summary>
-        public string WorkingFolder { get; set; }
+        public string WorkingFolder { get; private set; }
 
         // TODO docs
-        // TODO helper method to set flush mode
-        public FlushMode FlushMode { get; set; } = FlushMode.AtOnce;
+        public FlushMode FlushMode { get; private set; } = FlushMode.AtOnce;
 
-        public byte[] AesEncryption_Key { get; set; }
+        public int? FlushIntervalMilliseconds { get; private set; }
+
+        public byte[]? AesEncryptionKey { get; private set; }
+
+        public StorageConfiguration(string workingFolder)
+        {
+            WorkingFolder = workingFolder;
+        }
+
+        public StorageConfiguration SetFlushModeDeferred(int? flushIntervalMilliseconds = null)
+        {
+            FlushMode = FlushMode.Deferred;
+            FlushIntervalMilliseconds = flushIntervalMilliseconds;
+            return this;
+        }
+
+        public StorageConfiguration EnableEncryption(byte[] aesEncryptionKey)
+        {
+            AesEncryptionKey = aesEncryptionKey;
+            return this;
+        }
     }
 
     public enum FlushMode

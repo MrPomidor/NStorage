@@ -33,7 +33,7 @@ namespace NStorage.App
 				throw new ArgumentException("Usage: NStorage.App.exe InputFolder StorageFolder");
 			}
 
-			storageConfiguration = storageConfiguration ?? new StorageConfiguration() { WorkingFolder = storageFolder };
+			storageConfiguration = storageConfiguration ?? new StorageConfiguration(storageFolder);
 
 			var files = Directory.EnumerateFiles(dataFolder, "*", SearchOption.AllDirectories);
 			files = take.HasValue ? files.Take(take.Value) : files;

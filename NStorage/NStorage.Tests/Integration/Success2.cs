@@ -68,12 +68,11 @@ namespace NStorage.Tests.Integration
         };
         private static Func<string, int, byte[], StorageConfiguration> GetStorageConfiguration = (storageFolder, index, aesKey) =>
         {
-            return new StorageConfiguration
-            {
-                WorkingFolder = storageFolder,
-                FlushMode = IndexFlushModes[index],
-                AesEncryption_Key = aesKey
-            };
+            var storageConfiguration = new StorageConfiguration(storageFolder)
+            .EnableEncryption(aesKey);
+            if (IndexFlushModes[index] == FlushMode.Deferred)
+                storageConfiguration = storageConfiguration.SetFlushModeDeferred();
+            return storageConfiguration;
         };
 
         [Theory]
@@ -103,7 +102,7 @@ namespace NStorage.Tests.Integration
                 throw new ArgumentException("Usage: NStorage.App.exe InputFolder StorageFolder");
             }
 
-            storageConfiguration = storageConfiguration ?? new StorageConfiguration() { WorkingFolder = storageFolder };
+            storageConfiguration = storageConfiguration ?? new StorageConfiguration(storageFolder);
 
             var files = Directory.EnumerateFiles(dataFolder, "*", SearchOption.AllDirectories);
             files = take.HasValue ? files.Take(take.Value) : files;

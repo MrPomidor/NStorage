@@ -72,12 +72,11 @@ namespace NStorage.Tests.Integration
         };
         private static Func<string, int, byte[], StorageConfiguration> GetStorageConfiguration = (storageFolder, index, aesKey) =>
         {
-            return new StorageConfiguration
-            {
-                WorkingFolder = storageFolder,
-                FlushMode = IndexFlushModes[index],
-                AesEncryption_Key = aesKey,
-            };
+            var storageConfiguration = new StorageConfiguration(storageFolder)
+            .EnableEncryption(aesKey);
+            if (IndexFlushModes[index] == FlushMode.Deferred)
+                storageConfiguration = storageConfiguration.SetFlushModeDeferred();
+            return storageConfiguration;
         };
 
         [Theory]

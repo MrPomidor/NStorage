@@ -10,7 +10,6 @@ using System.Security.Cryptography;
 namespace NStorage.Tests.Benchmarks
 {
     // TODO target count, launch count ?
-    //[EtwProfiler]
     [SimpleJob(RuntimeMoniker.Net60, targetCount:20)]
     public class Write
     {
@@ -18,7 +17,6 @@ namespace NStorage.Tests.Benchmarks
         public int FilesCount;
 
         [Params(FlushMode.AtOnce, FlushMode.Deferred)]
-        //[Params(FlushMode.Deferred)]
         public FlushMode IndexFlushMode;
 
         [Params(true, false)]
