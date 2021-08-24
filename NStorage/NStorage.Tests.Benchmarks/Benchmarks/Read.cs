@@ -1,5 +1,6 @@
 ﻿using BenchmarkDotNet.Attributes;
 using BenchmarkDotNet.Jobs;
+using NStorage.DataStructure;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -42,7 +43,7 @@ namespace NStorage.Tests.Benchmarks.Benchmarks
             streamInfo.IsCompressed = IsCompressed;
             streamInfo.IsEncrypted = IsEncrypted;
 
-            using (var storage = new BinaryStorage(new StorageConfiguration() { WorkingFolder = _tempStorageFolderName, AesEncryption_Key = _aesKey }))
+            using (var storage = new BinaryStorage(new StorageConfiguration(_tempStorageFolderName).EnableEncryption(_aesKey)))
             {
                 var files = Directory.EnumerateFiles(Consts.GetLargeTestDataSetFolder(), "*", SearchOption.AllDirectories).Take(FilesCount).ToArray();
                 _fileNames = new string[files.Length];
@@ -83,7 +84,7 @@ namespace NStorage.Tests.Benchmarks.Benchmarks
         [Benchmark]
         public void ParallelRead()
         {
-            using (var storage = new BinaryStorage(new StorageConfiguration() { WorkingFolder = _tempStorageFolderName, AesEncryption_Key = _aesKey, FlushMode = IndexFlushMode }))
+            using (var storage = new BinaryStorage(GetStorageConfiguration()))
             {
                 _fileNames
                     .AsParallel().WithDegreeOfParallelism(4).ForAll(fileName =>
@@ -97,13 +98,22 @@ namespace NStorage.Tests.Benchmarks.Benchmarks
         [Benchmark]
         public void SequentialRead()
         {
-            using (var storage = new BinaryStorage(new StorageConfiguration() { WorkingFolder = _tempStorageFolderName, AesEncryption_Key = _aesKey, FlushMode = IndexFlushMode }))
+            using (var storage = new BinaryStorage(GetStorageConfiguration()))
             {
                 foreach (var fileName in _fileNames)
                 {
                     using var resultStream = storage.Get(fileName);
                 }
             }
+        }
+
+        private StorageConfiguration GetStorageConfiguration()
+        {
+            var storageConfiguration = new StorageConfiguration(_tempStorageFolderName)
+                .EnableEncryption(_aesKey);
+            if (IndexFlushMode == FlushMode.Deferred)
+                storageConfiguration = storageConfiguration.SetFlushModeDeferred();
+            return storageConfiguration;
         }
     }
 }

@@ -113,7 +113,7 @@ namespace NStorage.Tests.Benchmarks
         public void ParallelWrite()
         {
             var streamInfo = GetStreamInfo();
-            using (var storage = new BinaryStorage(new StorageConfiguration() { WorkingFolder = _tempStorageFolderName, AesEncryption_Key = _aesKey, FlushMode = IndexFlushMode }))
+            using (var storage = new BinaryStorage(GetStorageConfiguration()))
             {
                 _fileStreams
                     .AsParallel().WithDegreeOfParallelism(4).ForAll(s =>
@@ -128,13 +128,22 @@ namespace NStorage.Tests.Benchmarks
         public void SequentialWrite()
         {
             var streamInfo = GetStreamInfo();
-            using (var storage = new BinaryStorage(new StorageConfiguration() { WorkingFolder = _tempStorageFolderName, AesEncryption_Key = _aesKey, FlushMode = IndexFlushMode }))
+            using (var storage = new BinaryStorage(GetStorageConfiguration()))
             {
                 foreach(var s in _fileStreams)
                 {
                     storage.Add(s.fileName, s.stream, streamInfo);
                 }
             }
+        }
+
+        private StorageConfiguration GetStorageConfiguration()
+        {
+            var storageConfiguration = new StorageConfiguration(_tempStorageFolderName)
+                .EnableEncryption(_aesKey);
+            if (IndexFlushMode == FlushMode.Deferred)
+                storageConfiguration = storageConfiguration.SetFlushModeDeferred();
+            return storageConfiguration;
         }
     }
 }
