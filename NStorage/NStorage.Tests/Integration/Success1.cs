@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Security.Cryptography;
 using System.Text;
 using System.Threading.Tasks;
 using Xunit;
@@ -23,14 +24,25 @@ namespace NStorage.Tests.Integration
         private readonly string _storageFolder;
         private readonly string _dataFolder;
 
+        private readonly byte[] _aesKey;
+
+
         public Success1()
         {
             _tempTestFolder = GetTempTestFolderPath("Integration/Success1");
             (_storageFolder, _dataFolder) = GetMainArgs(_tempTestFolder);
+            using (var aes = Aes.Create())
+            {
+                _aesKey = aes.Key;
+            }
         }
 
         private static readonly int[] RecordsToTake = new[]
         {
+            10,
+            10,
+            10,
+            10,
             10,
             10,
             10,
@@ -42,20 +54,29 @@ namespace NStorage.Tests.Integration
             FlushMode.Deferred,
             FlushMode.AtOnce,
             FlushMode.Deferred,
+            FlushMode.AtOnce,
+            FlushMode.Deferred,
+            FlushMode.AtOnce,
+            FlushMode.Deferred,
         };
         private static readonly StreamInfo[] StreamInfos = new[]
         {
-            StreamInfo.Empty,
-            StreamInfo.Empty,
-            new StreamInfo() { IsCompressed = true },
-            new StreamInfo() { IsCompressed = true },
+            StreamInfo.Empty, //0
+            StreamInfo.Empty, //1
+            new StreamInfo() { IsCompressed = true }, //2
+            new StreamInfo() { IsCompressed = true }, //3
+            new StreamInfo() { IsEncrypted = true }, //4
+            new StreamInfo() { IsEncrypted = true }, //5
+            new StreamInfo() { IsCompressed = true, IsEncrypted = true }, //6
+            new StreamInfo() { IsCompressed = true, IsEncrypted = true }, //7
         };
-        private static Func<string, int, StorageConfiguration> GetStorageConfiguration = (storageFolder, index) =>
+        private static Func<string, int, byte[], StorageConfiguration> GetStorageConfiguration = (storageFolder, index, aesKey) =>
         {
             return new StorageConfiguration
             {
                 WorkingFolder = storageFolder,
-                FlushMode = IndexFlushModes[index]
+                FlushMode = IndexFlushModes[index],
+                AesEncryption_Key = aesKey,
             };
         };
 
@@ -64,11 +85,16 @@ namespace NStorage.Tests.Integration
         [InlineData(1)]
         [InlineData(2)]
         [InlineData(3)]
+        [InlineData(4)]
+        [InlineData(5)]
+        [InlineData(6)]
+        [InlineData(7)]
         public void Test(int dataSetIndex)
         {
-            var configuration = GetStorageConfiguration(_storageFolder, dataSetIndex);
+            var configuration = GetStorageConfiguration(_storageFolder, dataSetIndex, _aesKey);
             var recordCount = RecordsToTake[dataSetIndex];
             var streamInfo = StreamInfos[dataSetIndex];
+            // TODO move to test case scenarious
             // act
             NStorage.App.Program.Run(storageFolder: _storageFolder, dataFolder: _dataFolder, take: recordCount, storageConfiguration: configuration, streamInfo: streamInfo);
         }

@@ -5,6 +5,7 @@ using BenchmarkDotNet.Jobs;
 using System;
 using System.IO;
 using System.Linq;
+using System.Security.Cryptography;
 
 namespace NStorage.Tests.Benchmarks
 {
@@ -23,12 +24,22 @@ namespace NStorage.Tests.Benchmarks
         [Params(true, false)]
         public bool IsCompressed;
 
+        [Params(true, false)]
+        public bool IsEncrypted;
+
         private string _tempStorageFolderName;
         private (Stream stream, string fileName)[] _fileStreams;
+
+        private byte[] _aesKey;
 
         [GlobalSetup]
         public void GlobalSetup()
         {
+            using (var aes = Aes.Create())
+            {
+                _aesKey = aes.Key;
+            }
+
             _fileStreams = new (Stream, string)[FilesCount];
 
             var files = Directory.EnumerateFiles(Consts.GetLargeTestDataSetFolder(), "*", SearchOption.AllDirectories).Take(FilesCount).ToArray();
@@ -96,6 +107,7 @@ namespace NStorage.Tests.Benchmarks
         {
             var streamInfo = StreamInfo.Empty;
             streamInfo.IsCompressed = IsCompressed;
+            streamInfo.IsEncrypted = IsEncrypted;
             return streamInfo;
         }
 
@@ -103,7 +115,7 @@ namespace NStorage.Tests.Benchmarks
         public void ParallelWrite()
         {
             var streamInfo = GetStreamInfo();
-            using (var storage = new BinaryStorage(new StorageConfiguration() { WorkingFolder = _tempStorageFolderName, FlushMode = IndexFlushMode }))
+            using (var storage = new BinaryStorage(new StorageConfiguration() { WorkingFolder = _tempStorageFolderName, AesEncryption_Key = _aesKey, FlushMode = IndexFlushMode }))
             {
                 _fileStreams
                     .AsParallel().WithDegreeOfParallelism(4).ForAll(s =>
@@ -118,7 +130,7 @@ namespace NStorage.Tests.Benchmarks
         public void SequentialWrite()
         {
             var streamInfo = GetStreamInfo();
-            using (var storage = new BinaryStorage(new StorageConfiguration() { WorkingFolder = _tempStorageFolderName, FlushMode = IndexFlushMode }))
+            using (var storage = new BinaryStorage(new StorageConfiguration() { WorkingFolder = _tempStorageFolderName, AesEncryption_Key = _aesKey, FlushMode = IndexFlushMode }))
             {
                 foreach(var s in _fileStreams)
                 {

@@ -9,11 +9,9 @@ using Newtonsoft.Json;
 using NStorage.DataStructure;
 using NStorage.Exceptions;
 using Index = NStorage.DataStructure.Index;
-using System.Diagnostics;
-using System.Timers;
-using System.IO.Pipes;
 using System.Threading;
 using System.IO.Compression;
+using System.Security.Cryptography;
 
 namespace NStorage
 {
@@ -31,6 +29,9 @@ namespace NStorage
         private long _storageFileLength;
         private readonly FileStream _storageFileStream;
         private readonly FileStream _indexFileStream;
+
+        private const int AesEncryption_IVLength = 16;
+        private readonly byte[] _aesEncryption_Key;
 
         private readonly FlushMode? _flushMode;
         private const int DefaultFlushIntervalMiliseconds = 100;
@@ -106,6 +107,10 @@ namespace NStorage
                 _token = _source.Token;
                 Task.Run(OnTick, _token);
             }
+
+            // TODO validate encryption keys provided
+            _aesEncryption_Key = configuration.AesEncryption_Key;
+
             // TODO check if storage file length is expected
             // TODO lock storage and index files for current process
         }
@@ -150,6 +155,8 @@ namespace NStorage
         {
             EnsureNotDisposed();
 
+            // TODO validate encryption keys are setted up
+
             EnsureAndBookKey(key);
 
             if (_flushMode == FlushMode.AtOnce)
@@ -188,9 +195,31 @@ namespace NStorage
         {
             if (!parameters.IsCompressed)
             {
-                var bytes = new byte[data.Length];
-                data.Read(bytes);
-                return (bytes, new DataProperties());
+                if (parameters.IsEncrypted)
+                {
+                    // TODO AesManaged ??
+                    using (var aes = Aes.Create()) // TODO create instance variable ??
+                    using (var memStream = new MemoryStream())
+                    {
+                        var iv = aes.IV;
+                        memStream.Write(iv, 0, iv.Length);
+                        using (var cryptoStream = new CryptoStream(memStream, aes.CreateEncryptor(_aesEncryption_Key, iv), CryptoStreamMode.Write, leaveOpen: true))
+                        {
+                            data.CopyTo(cryptoStream);
+                        }
+                        memStream.Seek(0, SeekOrigin.Begin);
+
+                        var bytes = new byte[memStream.Length];
+                        memStream.Read(bytes);
+                        return (bytes, new DataProperties { IsEncrypted = true });
+                    }
+                }
+                else
+                {
+                    var bytes = new byte[data.Length];
+                    data.Read(bytes);
+                    return (bytes, new DataProperties());
+                }
             }
             else
             {
@@ -200,10 +229,32 @@ namespace NStorage
                     data.CopyTo(stream);
                     stream.Flush();
 
-                    var bytes = new byte[memStream.Length];
                     memStream.Seek(0, SeekOrigin.Begin);
-                    memStream.Read(bytes);
-                    return (bytes, new DataProperties { IsCompressed = true });
+                    if (parameters.IsEncrypted)
+                    {
+                        using (var aes = Aes.Create())
+                        using (var memStream2 = new MemoryStream())
+                        {
+                            var iv = aes.IV;
+                            memStream2.Write(iv, 0, iv.Length);
+                            using (var cryptoStream = new CryptoStream(memStream2, aes.CreateEncryptor(_aesEncryption_Key, iv), CryptoStreamMode.Write, leaveOpen: true))
+                            {
+                                memStream.CopyTo(cryptoStream);
+                            }
+
+                            memStream2.Seek(0, SeekOrigin.Begin);
+
+                            var bytes = new byte[memStream2.Length];
+                            memStream2.Read(bytes);
+                            return (bytes, new DataProperties { IsCompressed = true, IsEncrypted = true });
+                        }
+                    }
+                    else
+                    {
+                        var bytes = new byte[memStream.Length];
+                        memStream.Read(bytes);
+                        return (bytes, new DataProperties { IsCompressed = true });
+                    }
                 }
             }
             
@@ -337,6 +388,8 @@ namespace NStorage
             if (!_recordsCache.TryGetValue(key, out var recordData) || recordData == null)
                 throw new KeyNotFoundException(key);
 
+            // TODO check if encryption is enabled
+
             var fileStream = _storageFileStream;
             var bytes = new byte[recordData!.DataReference.Length];
             lock (this)
@@ -347,7 +400,6 @@ namespace NStorage
                 fileStream.Seek(fileStreamLength, SeekOrigin.Begin);
             }
             // TODO check bytes read count
-            // TODO perform stream modifications
             return GetProcessedStream(bytes, recordData!.Properties);
         }
 
@@ -357,18 +409,70 @@ namespace NStorage
             if (!dataProperties.IsCompressed)
             {
                 var memStream = new MemoryStream(bytes);
-                return memStream;
+                if (dataProperties.IsEncrypted)
+                {
+                    using var aes = Aes.Create();
+                    var returnMemStream = new MemoryStream();
+                    using (memStream)
+                    {
+                        var IVBytes = new byte[AesEncryption_IVLength]; // TODO array pool
+                        memStream.Read(IVBytes, 0, AesEncryption_IVLength);
+
+                        using (var cryptoStream = new CryptoStream(memStream, aes.CreateDecryptor(_aesEncryption_Key, IVBytes), CryptoStreamMode.Read))
+                        {
+                            cryptoStream.CopyTo(returnMemStream);
+
+                            returnMemStream.Seek(0, SeekOrigin.Begin);
+                            return returnMemStream;
+                        }
+                    }
+                }
+                else
+                {
+                    return memStream;
+                }
             }
             else
             {
-                var memStream1 = new MemoryStream();
-                using (var memoryStream = new MemoryStream(bytes))
-                using (var decompress = new DeflateStream(memoryStream, CompressionMode.Decompress))
+                if (dataProperties.IsEncrypted)
                 {
-                    decompress.CopyTo(memStream1);
-                    decompress.Flush();
-                    memStream1.Seek(0, SeekOrigin.Begin);
-                    return memStream1;
+                    // first decrypt, then decompress
+                    using var aes = Aes.Create();
+                    var memStream1 = new MemoryStream();
+                    using (var memStream = new MemoryStream(bytes))
+                    {
+                        var IVBytes = new byte[AesEncryption_IVLength]; // TODO array pool
+                        memStream.Read(IVBytes, 0, AesEncryption_IVLength);
+
+                        using (var cryptoStream = new CryptoStream(memStream, aes.CreateDecryptor(_aesEncryption_Key, IVBytes), CryptoStreamMode.Read))
+                        {
+                            cryptoStream.CopyTo(memStream1);
+
+                            var returnMemStream = new MemoryStream();
+                            memStream1.Seek(0, SeekOrigin.Begin);
+                            using (memStream1)
+                            using (var decompress = new DeflateStream(memStream1, CompressionMode.Decompress))
+                            {
+                                decompress.CopyTo(returnMemStream);
+                                decompress.Flush();
+
+                                returnMemStream.Seek(0, SeekOrigin.Begin);
+                                return returnMemStream;
+                            }
+                        }
+                    }
+                }
+                else
+                {
+                    var memStream1 = new MemoryStream();
+                    using (var memoryStream = new MemoryStream(bytes))
+                    using (var decompress = new DeflateStream(memoryStream, CompressionMode.Decompress))
+                    {
+                        decompress.CopyTo(memStream1);
+                        decompress.Flush();
+                        memStream1.Seek(0, SeekOrigin.Begin);
+                        return memStream1;
+                    }
                 }
             }
         }

@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Security.Cryptography;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -21,17 +22,27 @@ namespace NStorage.Tests.Benchmarks.Benchmarks
         [Params(true, false)]
         public bool IsCompressed;
 
+        [Params(true, false)]
+        public bool IsEncrypted;
+
         private string _tempStorageFolderName;
         private string[] _fileNames;
+
+        private byte[] _aesKey;
 
         [GlobalSetup]
         public void GlobalSetup()
         {
             _tempStorageFolderName = GetTempTestFolderPath("Benchmarks/Write");
+            using (var aes = Aes.Create())
+            {
+                _aesKey = aes.Key;
+            }
             var streamInfo = StreamInfo.Empty;
             streamInfo.IsCompressed = IsCompressed;
+            streamInfo.IsEncrypted = IsEncrypted;
 
-            using (var storage = new BinaryStorage(new StorageConfiguration() { WorkingFolder = _tempStorageFolderName }))
+            using (var storage = new BinaryStorage(new StorageConfiguration() { WorkingFolder = _tempStorageFolderName, AesEncryption_Key = _aesKey }))
             {
                 var files = Directory.EnumerateFiles(Consts.GetLargeTestDataSetFolder(), "*", SearchOption.AllDirectories).Take(FilesCount).ToArray();
                 _fileNames = new string[files.Length];
@@ -72,7 +83,7 @@ namespace NStorage.Tests.Benchmarks.Benchmarks
         [Benchmark]
         public void ParallelRead()
         {
-            using (var storage = new BinaryStorage(new StorageConfiguration() { WorkingFolder = _tempStorageFolderName, FlushMode = IndexFlushMode }))
+            using (var storage = new BinaryStorage(new StorageConfiguration() { WorkingFolder = _tempStorageFolderName, AesEncryption_Key = _aesKey, FlushMode = IndexFlushMode }))
             {
                 _fileNames
                     .AsParallel().WithDegreeOfParallelism(4).ForAll(fileName =>
@@ -86,7 +97,7 @@ namespace NStorage.Tests.Benchmarks.Benchmarks
         [Benchmark]
         public void SequentialRead()
         {
-            using (var storage = new BinaryStorage(new StorageConfiguration() { WorkingFolder = _tempStorageFolderName, FlushMode = IndexFlushMode }))
+            using (var storage = new BinaryStorage(new StorageConfiguration() { WorkingFolder = _tempStorageFolderName, AesEncryption_Key = _aesKey, FlushMode = IndexFlushMode }))
             {
                 foreach (var fileName in _fileNames)
                 {

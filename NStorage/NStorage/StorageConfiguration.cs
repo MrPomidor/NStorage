@@ -34,6 +34,8 @@ namespace NStorage
         // TODO docs
         // TODO helper method to set flush mode
         public FlushMode FlushMode { get; set; } = FlushMode.AtOnce;
+
+        public byte[] AesEncryption_Key { get; set; }
     }
 
     public enum FlushMode
