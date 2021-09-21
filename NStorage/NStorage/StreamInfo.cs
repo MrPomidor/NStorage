@@ -1,10 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace NStorage
+﻿namespace NStorage
 {
     // TODO builder-like syntax and save modification
     public class StreamInfo

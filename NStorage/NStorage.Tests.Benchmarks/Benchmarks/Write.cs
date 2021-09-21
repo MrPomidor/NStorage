@@ -1,6 +1,5 @@
 ﻿using BenchmarkDotNet.Attributes;
 //using BenchmarkDotNet.Diagnostics.Windows.Configs;
-using BenchmarkDotNet.Diagnostics.Windows.Configs;
 using BenchmarkDotNet.Jobs;
 using System;
 using System.IO;

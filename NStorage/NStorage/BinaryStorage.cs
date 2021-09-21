@@ -1,15 +1,11 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Collections.Concurrent;
 using System.IO;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using Newtonsoft.Json;
 using NStorage.DataStructure;
 using NStorage.Exceptions;
 using Index = NStorage.DataStructure.Index;
-using System.Threading;
 using System.IO.Compression;
 using System.Security.Cryptography;
 using NStorage.StorageHandlers;
@@ -179,7 +175,7 @@ namespace NStorage
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private (Memory<byte> memory, DataProperties properties) GetProcessedMemory(Stream data, StreamInfo parameters)
+        private (Memory<byte> memory, DataProperties properties) GetProcessedMemory(Stream data, StreamInfo parameters) // TODO why we use memory here ? (remove if incompatible with NET Framework)
         {
             if (!parameters.IsCompressed) // not compressed
             {
@@ -269,7 +265,7 @@ namespace NStorage
                 throw new KeyNotFoundException(key);
 
             // TODO check bytes read count
-            return GetProcessedStream(record.Item1, record.Item2);
+            return GetProcessedStream(record.Item1, record.Item2); // TODO rename item1 item2
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

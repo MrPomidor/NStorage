@@ -1,29 +1,18 @@
-﻿using Newtonsoft.Json;
-using NStorage.DataStructure;
+﻿using NStorage.DataStructure;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using System.Runtime.CompilerServices;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Index = NStorage.DataStructure.Index;
 
 namespace NStorage.StorageHandlers
 {
-    public class DeferredIntervalStorageHandler : IStorageHandler
+    public class DeferredIntervalStorageHandler : StorageHandlerBase
     {
-        private readonly object _storageFilesAccessLock;
-
-        private long _storageFileLength;
-        private readonly FileStream _storageFileStream;
-        private readonly FileStream _indexFileStream;
-
         private readonly int _flushIntervalMilliseconds;
-
-        private readonly ConcurrentDictionary<string, IndexRecord> _recordsCache;
 
         private readonly ConcurrentDictionary<string, (Memory<byte> memory, DataProperties properties)?>? _tempRecordsCache;
         private readonly ConcurrentQueue<(string key, (Memory<byte> memory, DataProperties properties))>? _recordsQueue;
@@ -39,25 +28,19 @@ namespace NStorage.StorageHandlers
              object storageFilesAccessLock,
              Index index,
              int flushIntervalMilliseconds)
+            : base(storageFileStream, indexFileStream, index, storageFilesAccessLock)
         {
-            _storageFileStream = storageFileStream;
-            _indexFileStream = indexFileStream;
-
-            _storageFilesAccessLock = storageFilesAccessLock;
-
-            _recordsCache = new ConcurrentDictionary<string, IndexRecord>(index.Records.ToDictionary(item => item.Key)); // TODO move to method to base class
-
             _tempRecordsCache = new ConcurrentDictionary<string, (Memory<byte> memory, DataProperties properties)?>();
             _recordsQueue = new ConcurrentQueue<(string key, (Memory<byte> memory, DataProperties properties))>();
 
             _flushIntervalMilliseconds = flushIntervalMilliseconds;
         }
 
-        public void Init()
+        public override void Init()
         {
-            // TODO move to base
-            _storageFileLength = _storageFileStream.Length;
-            _storageFileStream.Seek(_storageFileLength, SeekOrigin.Begin);
+            EnsureNotDisposed();
+
+            base.Init();
 
             _token = _source.Token;
             Task.Run(OnTick, _token); // TODO on tick
@@ -134,8 +117,10 @@ namespace NStorage.StorageHandlers
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void EnsureAndBookKey(string key)
+        public override void EnsureAndBookKey(string key)
         {
+            EnsureNotDisposed();
+
             if (_recordsCache.TryGetValue(key, out _) || !_tempRecordsCache!.TryAdd(key, null))
             {
                 throw new ArgumentException($"Key {key} already exists in storage"); // TODO better exception ?
@@ -143,24 +128,28 @@ namespace NStorage.StorageHandlers
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void Add(string key, (Memory<byte> memory, DataProperties properties) dataTuple)
+        public override void Add(string key, (Memory<byte> memory, DataProperties properties) dataTuple)
         {
+            EnsureNotDisposed();
+
             _tempRecordsCache!.AddOrUpdate(key, (_) => dataTuple, (_, _) => dataTuple);
             _recordsQueue!.Enqueue((key, dataTuple));
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public bool Contains(string key)
+        public override bool Contains(string key)
         {
+            EnsureNotDisposed();
+
             if (_tempRecordsCache!.TryGetValue(key, out var value) && value != null)
                 return true;
             return _recordsCache.TryGetValue(key, out var recordData) && recordData != null;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public bool TryGetRecord(string key, out (byte[], DataProperties) outRecord)
+        public override bool TryGetRecord(string key, out (byte[], DataProperties) outRecord)
         {
-            outRecord = default;
+            EnsureNotDisposed();
 
             if (_tempRecordsCache!.TryGetValue(key, out var record) && record != null)
             {
@@ -168,32 +157,24 @@ namespace NStorage.StorageHandlers
                 return true;
             }
 
-            // TODO move to base class
-
-            if (!_recordsCache.TryGetValue(key, out var recordData) || recordData == null)
-                return false;
-
-            var fileStream = _storageFileStream;
-            var bytes = new byte[recordData!.DataReference.Length];
-            lock (_storageFilesAccessLock)
-            {
-                var fileStreamLength = _storageFileLength;
-                fileStream.Seek(recordData.DataReference.StreamStart, SeekOrigin.Begin);
-                var bytesRead = fileStream.Read(bytes);
-                fileStream.Seek(fileStreamLength, SeekOrigin.Begin);
-            }
-
-            outRecord = (bytes, recordData!.Properties);
-            return true;
+            return base.TryGetRecord(key, out outRecord);
         }
 
-        // TODO disposed check
-
-        private bool _isDisposed = false;
-        public void Dispose()
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private void EnsureNotDisposed()
         {
-            if (_isDisposed)
+            if (_isDisposed || _isDisposing)
+                throw new ObjectDisposedException(GetType().FullName);
+        }
+
+        private volatile bool _isDisposed = false;
+        private volatile bool _isDisposing = false;
+        public override void Dispose()
+        {
+            if (_isDisposed || _isDisposing)
                 return;
+
+            _isDisposing = true;
 
             _source.Cancel();
             _flushDisposed.WaitOne();
@@ -203,31 +184,7 @@ namespace NStorage.StorageHandlers
             _recordsQueue!.Clear();
 
             _isDisposed = true;
-        }
-
-        // TODO base class methods
-        private void FlushFiles()
-        {
-            FlushStorageFile();
-            FlushIndexFile();
-        }
-
-        private void FlushStorageFile()
-        {
-            _storageFileStream.Flush(); // flush stream
-        }
-
-        private void FlushIndexFile()
-        {
-            var index = new Index { Records = _recordsCache.Values.ToArray().Where(x => x != null).OrderBy(x => x.DataReference.StreamStart).ToList() };
-            var indexSerialized = JsonConvert.SerializeObject(index);
-            var bytes = Encoding.UTF8.GetBytes(indexSerialized);
-
-            // TODO find way to rewrite using single operation system method
-            _indexFileStream.Seek(0, SeekOrigin.Begin);
-            _indexFileStream.SetLength(0);
-            _indexFileStream.Write(bytes);
-            _indexFileStream.Flush();
+            _isDisposing = false;
         }
     }
 }

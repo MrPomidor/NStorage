@@ -1,10 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace NStorage
+﻿namespace NStorage
 {
     public class StorageConfiguration
     {
@@ -45,6 +39,8 @@ namespace NStorage
 
         public StorageConfiguration SetFlushModeDeferred(int? flushIntervalMilliseconds = null)
         {
+            // TODO parameter checking
+
             FlushMode = FlushMode.Deferred;
             FlushIntervalMilliseconds = flushIntervalMilliseconds;
             return this;
