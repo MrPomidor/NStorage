@@ -24,14 +24,16 @@ namespace NStorage.App
 			Run(storageFolder: args[0], dataFolder: args[1], null);
 		}
 
-		public static void Run(string storageFolder, string dataFolder, int? take = 10, StorageConfiguration storageConfiguration = null)
+		public static void Run(string storageFolder, string dataFolder, int? take = 10, StorageConfiguration storageConfiguration = null, StreamInfo streamInfo = null)
         {
+			streamInfo = streamInfo ?? StreamInfo.Empty;
+
 			if (!Directory.Exists(dataFolder) || !Directory.Exists(storageFolder))
 			{
 				throw new ArgumentException("Usage: NStorage.App.exe InputFolder StorageFolder");
 			}
 
-			storageConfiguration = storageConfiguration ?? new StorageConfiguration() { WorkingFolder = storageFolder };
+			storageConfiguration = storageConfiguration ?? new StorageConfiguration(storageFolder);
 
 			var files = Directory.EnumerateFiles(dataFolder, "*", SearchOption.AllDirectories);
 			files = take.HasValue ? files.Take(take.Value) : files;
@@ -44,7 +46,7 @@ namespace NStorage.App
 				files
 					.AsParallel().WithDegreeOfParallelism(4).ForAll(s =>
 					{
-						AddFile(storage, s);
+						AddFile(storage, s, streamInfo);
 					});
 
 			}
@@ -87,36 +89,36 @@ namespace NStorage.App
 			Console.WriteLine("Time to verify: " + sw.Elapsed);
 		}
 
-		static void AddFile(IBinaryStorage storage, string fileName)
+		static void AddFile(IBinaryStorage storage, string fileName, StreamInfo streamInfo)
 		{
 			using (var file = new FileStream(fileName, FileMode.Open))
 			{
-				storage.Add(fileName, file, StreamInfo.Empty);
+				storage.Add(fileName, file, streamInfo);
 			}
 		}
 
-		static void AddBytes(IBinaryStorage storage, string key, byte[] data)
-		{
-			StreamInfo streamInfo = new StreamInfo();
-			using (MD5 md5 = MD5.Create())
-			{
-				streamInfo.Hash = md5.ComputeHash(data);
-			}
-			streamInfo.Length = data.Length;
-			streamInfo.IsCompressed = false;
+		//static void AddBytes(IBinaryStorage storage, string key, byte[] data)
+		//{
+		//	StreamInfo streamInfo = new StreamInfo();
+		//	using (MD5 md5 = MD5.Create())
+		//	{
+		//		streamInfo.Hash = md5.ComputeHash(data);
+		//	}
+		//	streamInfo.Length = data.Length;
+		//	streamInfo.IsCompressed = false;
 
-			using (var ms = new MemoryStream(data))
-			{
-				storage.Add(key, ms, streamInfo);
-			}
-		}
+		//	using (var ms = new MemoryStream(data))
+		//	{
+		//		storage.Add(key, ms, streamInfo);
+		//	}
+		//}
 
-		static void Dump(IBinaryStorage storage, string key, string fileName)
-		{
-			using (var file = new FileStream(fileName, FileMode.Create))
-			{
-				storage.Get(key).CopyTo(file);
-			}
-		}
+		//static void Dump(IBinaryStorage storage, string key, string fileName)
+		//{
+		//	using (var file = new FileStream(fileName, FileMode.Create))
+		//	{
+		//		storage.Get(key).CopyTo(file);
+		//	}
+		//}
 	}
 }

@@ -1,27 +1,43 @@
 ﻿using BenchmarkDotNet.Attributes;
+//using BenchmarkDotNet.Diagnostics.Windows.Configs;
+using BenchmarkDotNet.Diagnostics.Windows.Configs;
 using BenchmarkDotNet.Jobs;
 using System;
 using System.IO;
 using System.Linq;
+using System.Security.Cryptography;
 
 namespace NStorage.Tests.Benchmarks
 {
     // TODO target count, launch count ?
-    [SimpleJob(RuntimeMoniker.Net60)]
+    [SimpleJob(RuntimeMoniker.Net60, targetCount:20)]
     public class Write
     {
         [Params(1000)]
         public int FilesCount;
 
-        [Params(IndexFlushMode.AtOnce, IndexFlushMode.Deferred)]
-        public IndexFlushMode IndexFlushMode;
+        [Params(FlushMode.AtOnce, FlushMode.Deferred)]
+        public FlushMode IndexFlushMode;
+
+        [Params(true, false)]
+        public bool IsCompressed;
+
+        [Params(true, false)]
+        public bool IsEncrypted;
 
         private string _tempStorageFolderName;
         private (Stream stream, string fileName)[] _fileStreams;
 
+        private byte[] _aesKey;
+
         [GlobalSetup]
         public void GlobalSetup()
         {
+            using (var aes = Aes.Create())
+            {
+                _aesKey = aes.Key;
+            }
+
             _fileStreams = new (Stream, string)[FilesCount];
 
             var files = Directory.EnumerateFiles(Consts.GetLargeTestDataSetFolder(), "*", SearchOption.AllDirectories).Take(FilesCount).ToArray();
@@ -85,15 +101,24 @@ namespace NStorage.Tests.Benchmarks
             Directory.Delete(tempTestFolder, true);
         }
 
+        private StreamInfo GetStreamInfo()
+        {
+            var streamInfo = StreamInfo.Empty;
+            streamInfo.IsCompressed = IsCompressed;
+            streamInfo.IsEncrypted = IsEncrypted;
+            return streamInfo;
+        }
+
         [Benchmark]
         public void ParallelWrite()
         {
-            using (var storage = new BinaryStorage(new StorageConfiguration() { WorkingFolder = _tempStorageFolderName, IndexFlushMode = IndexFlushMode }))
+            var streamInfo = GetStreamInfo();
+            using (var storage = new BinaryStorage(GetStorageConfiguration()))
             {
                 _fileStreams
                     .AsParallel().WithDegreeOfParallelism(4).ForAll(s =>
                     {
-                        storage.Add(s.fileName, s.stream, StreamInfo.Empty);
+                        storage.Add(s.fileName, s.stream, streamInfo);
                     });
 
             }
@@ -102,13 +127,23 @@ namespace NStorage.Tests.Benchmarks
         [Benchmark]
         public void SequentialWrite()
         {
-            using (var storage = new BinaryStorage(new StorageConfiguration() { WorkingFolder = _tempStorageFolderName, IndexFlushMode = IndexFlushMode }))
+            var streamInfo = GetStreamInfo();
+            using (var storage = new BinaryStorage(GetStorageConfiguration()))
             {
                 foreach(var s in _fileStreams)
                 {
-                    storage.Add(s.fileName, s.stream, StreamInfo.Empty);
+                    storage.Add(s.fileName, s.stream, streamInfo);
                 }
             }
+        }
+
+        private StorageConfiguration GetStorageConfiguration()
+        {
+            var storageConfiguration = new StorageConfiguration(_tempStorageFolderName)
+                .EnableEncryption(_aesKey);
+            if (IndexFlushMode == FlushMode.Deferred)
+                storageConfiguration = storageConfiguration.SetFlushModeDeferred();
+            return storageConfiguration;
         }
     }
 }

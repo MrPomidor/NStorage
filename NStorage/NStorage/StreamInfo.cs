@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 
 namespace NStorage
 {
+    // TODO builder-like syntax and save modification
     public class StreamInfo
     {
         public static readonly StreamInfo Empty = new StreamInfo();
@@ -15,7 +16,7 @@ namespace NStorage
         /// specified, but actual hash of the data is different
         /// storage should throw ArgumentException
         /// </summary>
-        public byte[] Hash { get; set; }
+        //public byte[] Hash { get; set; }
 
         /// <summary>
         /// True if stream is compressed. Default false
@@ -28,6 +29,13 @@ namespace NStorage
         /// of the Stream is different the storage
         /// should throw ArgumentException
         /// </summary>
-        public long? Length { get; set; }
+        //public long? Length { get; set; }
+        public bool IsEncrypted { get; set; }// TODO documentation about using AES
+
+
+
+
+        // TODO encryption key and IV should be stored in StreamInfo or it should be storage configuration ?
+        // TODO is encrypted
     }
 }

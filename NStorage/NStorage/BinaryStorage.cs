@@ -9,8 +9,11 @@ using Newtonsoft.Json;
 using NStorage.DataStructure;
 using NStorage.Exceptions;
 using Index = NStorage.DataStructure.Index;
-using System.Diagnostics;
-using System.Timers;
+using System.Threading;
+using System.IO.Compression;
+using System.Security.Cryptography;
+using NStorage.StorageHandlers;
+using System.Runtime.CompilerServices;
 
 namespace NStorage
 {
@@ -23,14 +26,18 @@ namespace NStorage
         private readonly string _indexFilePath;
         private readonly string _storageFilePath;
 
-        private readonly ConcurrentDictionary<string, IndexRecord> _recordsCache;
+        private readonly object _storageFilesAccessLock = new object();
 
         private readonly FileStream _storageFileStream;
         private readonly FileStream _indexFileStream;
 
-        private readonly IndexFlushMode _flushMode;
-        private const int DefaultIndexFlushIntervalMiliseconds = 100;
-        private readonly Timer? _indexFlushTimer;
+        private const int AesEncryption_IVLength = 16;
+        private readonly byte[]? _aesEncryption_Key;
+        private readonly bool _encryptionEnalbed;
+
+        private const int DefaultFlushIntervalMiliseconds = 100;
+
+        private readonly IStorageHandler _handler;
 
         public BinaryStorage(StorageConfiguration configuration)
         {
@@ -49,6 +56,13 @@ namespace NStorage
 
             _indexFilePath = indexFilePath;
             _storageFilePath = storageFilePath;
+
+            // TODO validate encryption keys provided
+            if (configuration.AesEncryptionKey != null)
+            {
+                _encryptionEnalbed = true;
+                _aesEncryption_Key = configuration.AesEncryptionKey;
+            }
 
             try
             {
@@ -70,10 +84,32 @@ namespace NStorage
                 });
 
                 var index = DeserializeIndex(); // for more performace index file should be stored in memory
-                _recordsCache = new ConcurrentDictionary<string, IndexRecord>(index.Records.ToDictionary(item => item.Key));
 
                 CheckIndexNotCorrupted(index);
                 CheckStorageNotCorrupted(index);
+
+                var flushMode = configuration.FlushMode;
+                switch (flushMode)
+                {
+                    case FlushMode.AtOnce:
+                        _handler = new AtOnceStorageHandler(
+                            storageFileStream: _storageFileStream,
+                            indexFileStream: _indexFileStream,
+                            index: index,
+                            storageFilesAccessLock: _storageFilesAccessLock);
+                        break;
+                    case FlushMode.Deferred:
+                        _handler = new DeferredIntervalStorageHandler(
+                            storageFileStream: _storageFileStream,
+                            indexFileStream: _indexFileStream,
+                            storageFilesAccessLock: _storageFilesAccessLock,
+                            index: index,
+                            flushIntervalMilliseconds: configuration.FlushIntervalMilliseconds ?? DefaultFlushIntervalMiliseconds);
+                        break;
+                    default:
+                        throw new InvalidOperationException("Unknown FlushMode"); // TODO better exception, do validation before try/catch
+                }
+                _handler.Init();
             }
             catch (Exception ex)
             {
@@ -83,22 +119,8 @@ namespace NStorage
                 throw;
             }
 
-            _flushMode = configuration.IndexFlushMode;
-            //_flushInterval = TimeSpan.FromMilliseconds(100);
-            if (_flushMode == IndexFlushMode.Deferred)
-            {
-                _indexFlushTimer = new Timer(DefaultIndexFlushIntervalMiliseconds);
-                _indexFlushTimer.AutoReset = true;
-                _indexFlushTimer.Elapsed += IndexFlushTimer_Elapsed;
-                _indexFlushTimer.Start();
-            }
             // TODO check if storage file length is expected
             // TODO lock storage and index files for current process
-        }
-
-        private void IndexFlushTimer_Elapsed(object sender, ElapsedEventArgs e)
-        {
-            FlushIndex();
         }
 
         ~BinaryStorage()
@@ -131,6 +153,7 @@ namespace NStorage
         private void CheckStorageNotCorrupted(Index index)
         {
             var expectedStorageLengthBytes = index.Records.Sum(x => x.DataReference.Length);
+            // TODO consider optimization and crop file length if it is greater then expected
             var storageLength = new FileInfo(_storageFilePath).Length;
             if (storageLength != expectedStorageLengthBytes)
                 throw new StorageCorruptedException($"Storage length is not as expected in summ of index data records. FileLength {storageLength}, expected {expectedStorageLengthBytes}");
@@ -140,117 +163,226 @@ namespace NStorage
         {
             EnsureNotDisposed();
 
-            EnsureKeyNotExist(key);
+            EnsureStreamParametersCorrect(parameters);
 
-            (var startPosition, var length) = AppendToStorage(data, parameters);
+            EnsureAndBookKey(key);
 
-            var record = new IndexRecord(key, new DataReference { StreamStart = startPosition, Length = length }, new DataProperties());
-            _recordsCache.TryAdd(key, record);
-
-            if (_flushMode == IndexFlushMode.AtOnce)
-            {
-                FlushIndex();
-            }
+            var dataTuple = GetProcessedMemory(data, parameters);
+            _handler.Add(key, dataTuple);
         }
 
-        private Stream GetProcessedStream(Stream data, StreamInfo parameters)
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private void EnsureStreamParametersCorrect(StreamInfo parameters)
         {
-            var memStream = new MemoryStream();
-            data.CopyTo(memStream);
-            memStream.Seek(0, SeekOrigin.Begin);
-            return memStream;
+            if (parameters.IsEncrypted && !_encryptionEnalbed)
+                throw new InvalidOperationException("Encryption was not configured in StorageConfiguration"); // TODO some exception
         }
 
-        private (long startPosition, long length) AppendToStorage(Stream inputData, StreamInfo parameters)
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private (Memory<byte> memory, DataProperties properties) GetProcessedMemory(Stream data, StreamInfo parameters)
         {
-            using (var dataStream = GetProcessedStream(inputData, parameters))
+            if (!parameters.IsCompressed) // not compressed
             {
-                var fileStream = _storageFileStream;
-                long streamLength = dataStream.Length;
-
-                lock (this)
+                if (!parameters.IsEncrypted) // not compressed, not encrypted
                 {
-                    long startPosition = fileStream.Length;
-                    fileStream.Seek(fileStream.Length, SeekOrigin.Begin);
-                    dataStream.CopyTo(fileStream);
-                    fileStream.Flush();
+                    var bytes = new byte[data.Length];
+                    data.Read(bytes);
+                    return (bytes, new DataProperties());
+                }
 
-                    return (startPosition, length: streamLength);
+                // not compressed, encrypted
+                using (var encrypted = GetEncryptedStream(data))
+                {
+                    var bytes = new byte[encrypted.Length];
+                    encrypted.Read(bytes);
+                    return (bytes, new DataProperties { IsEncrypted = true });
                 }
             }
-        }
 
-        private void FlushIndex()
-        {
-            var index = new Index { Records = _recordsCache.Values.OrderBy(x => x.DataReference.StreamStart).ToList() };
-            var indexSerialized = JsonConvert.SerializeObject(index);
-            var bytes = Encoding.UTF8.GetBytes(indexSerialized);
-
-            lock (this)
+            if (!parameters.IsEncrypted) // compressed, not encrypted
             {
-                _indexFileStream.Seek(0, SeekOrigin.Begin);
-                _indexFileStream.SetLength(0);
-                _indexFileStream.Write(bytes);
-                _indexFileStream.Flush();
+                using (var compressed = GetCompressedStream(data))
+                {
+                    var bytes = new byte[compressed.Length];
+                    compressed.Read(bytes);
+                    return (bytes, new DataProperties { IsCompressed = true });
+                }
+            }
+
+            // compressed, encrypted
+            // first compress, then decrypt
+            MemoryStream? compressedEncrypted = null;
+            using (var compressed = GetCompressedStream(data))
+            {
+                compressedEncrypted = GetEncryptedStream(compressed);
+            }
+            using (compressedEncrypted)
+            {
+                var bytes = new byte[compressedEncrypted.Length];
+                compressedEncrypted.Read(bytes);
+                return (bytes, new DataProperties { IsCompressed = true, IsEncrypted = true });
             }
         }
 
-        private void EnsureKeyNotExist(string key)
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private MemoryStream GetEncryptedStream(Stream dataStream)
         {
-            if (Contains(key))
-                throw new ArgumentException($"Key {key} already exists in storage");
+            var resultStream = new MemoryStream(); // TODO memstream pooling
+            using (var aes = Aes.Create()) // TODO create instance variable ??
+            {
+                var iv = aes.IV;
+                resultStream.Write(iv, 0, iv.Length);
+                using (var encryptor = aes.CreateEncryptor(_aesEncryption_Key!, iv))
+                using (var cryptoStream = new CryptoStream(resultStream, encryptor, CryptoStreamMode.Write, leaveOpen: true))
+                {
+                    dataStream.CopyTo(cryptoStream);
+                }
+            }
+            resultStream.Seek(0, SeekOrigin.Begin);
+            return resultStream;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private MemoryStream GetCompressedStream(Stream dataStream)
+        {
+            var resultStream = new MemoryStream(); // TODO memstream pooling
+            using (var stream = new DeflateStream(resultStream, CompressionMode.Compress, leaveOpen:true))
+            {
+                dataStream.CopyTo(stream);
+                stream.Flush();
+            }
+            resultStream.Seek(0, SeekOrigin.Begin);
+            return resultStream;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private void EnsureAndBookKey(string key)
+        {
+            _handler.EnsureAndBookKey(key);
         }
 
         public Stream Get(string key)
         {
             EnsureNotDisposed();
 
-            if (!Contains(key, out var recordData))
+            if (!_handler.TryGetRecord(key, out var record))
                 throw new KeyNotFoundException(key);
 
-            var fileStream = _storageFileStream;
-            var bytes = new byte[recordData.DataReference.Length];
-            lock (this)
-            {
-                fileStream.Seek(recordData.DataReference.StreamStart, SeekOrigin.Begin);
-                var bytesRead = fileStream.Read(bytes);
-            }
             // TODO check bytes read count
-            var memStream = new MemoryStream(bytes);
-            return memStream;
+            return GetProcessedStream(record.Item1, record.Item2);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        // TODO better naming
+        private MemoryStream GetProcessedStream(byte[] bytes, DataProperties dataProperties)
+        {
+            EnsureDataPropertiesCorrect(dataProperties);
+
+            if (!dataProperties.IsCompressed) // not compressed
+            {
+                if (!dataProperties.IsEncrypted) // not compressed, not encrypted
+                    return new MemoryStream(bytes);
+
+                // not compressed, encrypted
+                using (var inputStream = new MemoryStream(bytes)) // TODO memstream pooling 
+                {
+                    var resultStream = GetNewStreamFromDecrypt(inputStream);
+                    return resultStream;
+                }
+            }
+
+            if (!dataProperties.IsEncrypted) // compressed, not encrypted
+            {
+                using (var inputStream = new MemoryStream(bytes)) // TODO memstream pooling
+                {
+                    var resultStream = GetNewStreamFromDecompress(inputStream);
+                    return resultStream;
+                }
+            }
+
+            // compressed, encrypted
+            // first decrypt, then decompress
+            MemoryStream? decrypted = null;
+            using (var inputStream = new MemoryStream(bytes)) // TODO memstream pooling
+            {
+                decrypted = GetNewStreamFromDecrypt(inputStream);
+            }
+            using (decrypted)
+            {
+                decrypted.Seek(0, SeekOrigin.Begin);
+                var resultStream = GetNewStreamFromDecompress(decrypted);
+                return resultStream;
+            }
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private void EnsureDataPropertiesCorrect(DataProperties dataProperties)
+        {
+            if (dataProperties.IsEncrypted && !_encryptionEnalbed)
+                throw new InvalidOperationException("Encryption was not configured in StorageConfiguration"); // TODO some exception
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private MemoryStream GetNewStreamFromDecrypt(MemoryStream inputStream)
+        {
+            var IVBytes = new byte[AesEncryption_IVLength]; // TODO array pool
+            inputStream.Read(IVBytes, 0, AesEncryption_IVLength);
+            using (var aes = Aes.Create())
+            using (var decryptor = aes.CreateDecryptor(_aesEncryption_Key!, IVBytes))
+            {
+                using (var cryptoStream = new CryptoStream(inputStream, decryptor, CryptoStreamMode.Read))
+                {
+                    var resultMemoryStream = new MemoryStream();
+                    cryptoStream.CopyTo(resultMemoryStream);
+                    resultMemoryStream.Seek(0, SeekOrigin.Begin);
+                    return resultMemoryStream;
+                }
+            }
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private MemoryStream GetNewStreamFromDecompress(MemoryStream inputStream)
+        {
+            var resultMemoryStream = new MemoryStream();
+            using (var decompress = new DeflateStream(inputStream, CompressionMode.Decompress))
+            {
+                decompress.CopyTo(resultMemoryStream);
+                decompress.Flush();
+                resultMemoryStream.Seek(0, SeekOrigin.Begin);
+                return resultMemoryStream;
+            }
         }
 
         public bool Contains(string key)
         {
             EnsureNotDisposed();
 
-            return Contains(key, out _);
+            return _handler.Contains(key);
         }
 
-        private bool Contains(string key, out IndexRecord recordData)
-        {
-            return _recordsCache.TryGetValue(key, out recordData);
-        }
-
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void EnsureNotDisposed()
         {
-            if (_isDisposed)
+            if (_isDisposed || _isDisposing)
                 throw new ObjectDisposedException(GetType().FullName);
         }
 
-        private bool _isDisposed = false;
+        private volatile bool _isDisposed = false;
+        private volatile bool _isDisposing = false;
         private void DisposeInternal(bool disposing, bool flushBuffers)
         {
+            // TODO log fact of calling dispose from finalizer
+
             if (_isDisposed)
                 return;
 
-            if (flushBuffers)
+            _isDisposing = true;
+
+            if (flushBuffers) // TODO revisit this logic
             {
                 try
                 {
-                    FlushIndex();
-                    // TODO flush storage
-                    // TODO close all file blockings
+                    _handler?.Dispose();
                 }
                 catch (Exception ex)
                 {
@@ -262,11 +394,6 @@ namespace NStorage
             {
                 _indexFileStream?.Dispose();
                 _storageFileStream?.Dispose();
-                if (_indexFlushTimer != null)
-                {
-                    _indexFlushTimer.Elapsed -= IndexFlushTimer_Elapsed;
-                    _indexFlushTimer.Dispose();
-                }
             }
             catch (Exception ex)
             {
@@ -274,6 +401,7 @@ namespace NStorage
             }
 
             _isDisposed = true;
+            _isDisposing = false;
         }
 
         public void Dispose()
