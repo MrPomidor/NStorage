@@ -107,8 +107,15 @@ namespace NStorage.Tests.Benchmarks.Benchmarks
         {
             var storageConfiguration = new StorageConfiguration(_tempStorageFolderName)
                 .EnableEncryption(_aesKey);
-            if (IndexFlushMode == FlushMode.Deferred)
-                storageConfiguration = storageConfiguration.SetFlushModeDeferred();
+            switch (IndexFlushMode)
+            {
+                case FlushMode.Deferred:
+                    storageConfiguration = storageConfiguration.SetFlushModeDeferred();
+                    break;
+                case FlushMode.Manual:
+                    storageConfiguration = storageConfiguration.SetFlushModeManual();
+                    break;
+            }
             return storageConfiguration;
         }
     }

@@ -4,8 +4,5 @@
     {
         public bool IsCompressed { get; set; }
         public bool IsEncrypted { get; set; }
-        // TODO isCompressed
-        // TODO isEncrypted
-        // etc
     }
 }

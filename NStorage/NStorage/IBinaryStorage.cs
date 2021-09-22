@@ -46,7 +46,9 @@ namespace NStorage
         /// <returns>true if key is present and false otherwise</returns>
         bool Contains(string key);
 
-        // TODO docs
+        /// <summary>
+        /// Flush buffers, save data to storage, if applicable
+        /// </summary>
         void Flush();
     }
 }

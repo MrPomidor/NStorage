@@ -13,11 +13,10 @@ using System.Runtime.CompilerServices;
 
 namespace NStorage
 {
-    // TODO should be singletone
     public class BinaryStorage : IBinaryStorage
     {
-        private const string IndexFile = "index.json"; // TODO rename to dat
-        private const string StorageFile = "storage.bin"; // TODO rename to dat
+        private const string IndexFile = "index.dat";
+        private const string StorageFile = "storage.dat";
 
         private readonly object _storageFilesAccessLock = new();
 
