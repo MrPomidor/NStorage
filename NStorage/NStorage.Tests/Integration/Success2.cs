@@ -40,28 +40,40 @@ namespace NStorage.Tests.Integration
             10,
             10,
             10,
+            10,
+            10,
+            10,
+            10,
         };
         private static readonly FlushMode[] IndexFlushModes = new[]
         {
             FlushMode.AtOnce,
             FlushMode.Deferred,
+            FlushMode.Manual,
             FlushMode.AtOnce,
             FlushMode.Deferred,
+            FlushMode.Manual,
             FlushMode.AtOnce,
             FlushMode.Deferred,
+            FlushMode.Manual,
             FlushMode.AtOnce,
             FlushMode.Deferred,
+            FlushMode.Manual,
         };
         private static readonly StreamInfo[] StreamInfos = new[]
         {
             StreamInfo.Empty, //0
             StreamInfo.Empty, //1
-            new StreamInfo() { IsCompressed = true }, //2
+            StreamInfo.Empty, //2
             new StreamInfo() { IsCompressed = true }, //3
-            new StreamInfo() { IsEncrypted = true }, //4
-            new StreamInfo() { IsEncrypted = true }, //5
-            new StreamInfo() { IsCompressed = true, IsEncrypted = true }, //6
-            new StreamInfo() { IsCompressed = true, IsEncrypted = true }, //7
+            new StreamInfo() { IsCompressed = true }, //4
+            new StreamInfo() { IsCompressed = true }, //5
+            new StreamInfo() { IsEncrypted = true }, //6
+            new StreamInfo() { IsEncrypted = true }, //7
+            new StreamInfo() { IsEncrypted = true }, //8
+            new StreamInfo() { IsCompressed = true, IsEncrypted = true }, //9
+            new StreamInfo() { IsCompressed = true, IsEncrypted = true }, //10
+            new StreamInfo() { IsCompressed = true, IsEncrypted = true }, //11
         };
         private static Func<string, int, byte[], StorageConfiguration> GetStorageConfiguration = (storageFolder, index, aesKey) =>
         {
@@ -81,6 +93,10 @@ namespace NStorage.Tests.Integration
         [InlineData(5)]
         [InlineData(6)]
         [InlineData(7)]
+        [InlineData(8)]
+        [InlineData(9)]
+        [InlineData(10)]
+        [InlineData(11)]
         public async Task Test(int dataSetIndex)
         {
             var configuration = GetStorageConfiguration(_storageFolder, dataSetIndex, _aesKey);

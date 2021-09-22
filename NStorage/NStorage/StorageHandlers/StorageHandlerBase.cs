@@ -12,6 +12,7 @@ namespace NStorage.StorageHandlers
 {
     public abstract class StorageHandlerBase : IStorageHandler
     {
+        // TODO rename to uppercase
         protected readonly object _storageFilesAccessLock;
 
         protected long _storageFileLength;
@@ -65,6 +66,7 @@ namespace NStorage.StorageHandlers
         public abstract void Add(string key, (Memory<byte> memory, DataProperties properties) dataTuple);
         public abstract bool Contains(string key);
         public abstract void EnsureAndBookKey(string key);
+        public abstract void Flush();
         public abstract void Dispose();
 
         protected void FlushFiles()

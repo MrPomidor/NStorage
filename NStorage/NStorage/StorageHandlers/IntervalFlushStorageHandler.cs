@@ -1,6 +1,5 @@
 ﻿using NStorage.DataStructure;
 using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Runtime.CompilerServices;
@@ -10,19 +9,16 @@ using Index = NStorage.DataStructure.Index;
 
 namespace NStorage.StorageHandlers
 {
-    public class DeferredIntervalStorageHandler : StorageHandlerBase
+    public class IntervalFlushStorageHandler : DeferredFlushStorageHandlerBase
     {
         private readonly int _flushIntervalMilliseconds;
 
-        private readonly ConcurrentDictionary<string, (Memory<byte> memory, DataProperties properties)?>? _tempRecordsCache;
-        private readonly ConcurrentQueue<(string key, (Memory<byte> memory, DataProperties properties))>? _recordsQueue;
-
-        private CancellationTokenSource _source = new CancellationTokenSource();
+        private CancellationTokenSource _source = new();
         private CancellationToken _token;
 
         private ManualResetEvent _flushDisposed = new ManualResetEvent(false);
 
-        public DeferredIntervalStorageHandler(
+        public IntervalFlushStorageHandler(
              FileStream storageFileStream,
              FileStream indexFileStream,
              object storageFilesAccessLock,
@@ -30,9 +26,6 @@ namespace NStorage.StorageHandlers
              int flushIntervalMilliseconds)
             : base(storageFileStream, indexFileStream, index, storageFilesAccessLock)
         {
-            _tempRecordsCache = new ConcurrentDictionary<string, (Memory<byte> memory, DataProperties properties)?>();
-            _recordsQueue = new ConcurrentQueue<(string key, (Memory<byte> memory, DataProperties properties))>();
-
             _flushIntervalMilliseconds = flushIntervalMilliseconds;
         }
 
@@ -56,7 +49,7 @@ namespace NStorage.StorageHandlers
                     await Task.Delay(_flushIntervalMilliseconds);
                 }
 
-                while (_recordsQueue!.TryDequeue(out var queueItem))
+                while (_recordsQueue.TryDequeue(out var queueItem))
                 {
                     processingBuffer.Add(queueItem);
                 }
@@ -71,48 +64,10 @@ namespace NStorage.StorageHandlers
                 }
                 else
                 {
-                    await OnTick_Internal(processingBuffer);
+                    FlushInternal(processingBuffer);
 
                     processingBuffer.Clear();
                 }
-            }
-        }
-
-        // TODO rename
-        private async Task OnTick_Internal(List<(string key, (Memory<byte> memory, DataProperties properties))> processingBuffer)
-        {
-            var newStorageLength = _storageFileLength;
-
-            var keys = new List<string>();
-            var fileStream = _storageFileStream;
-
-            foreach (var item in processingBuffer)
-            {
-                var streamStart = newStorageLength;
-
-                var key = item.key;
-                keys.Add(key);
-                (var memory, var dataProperties) = item.Item2;
-
-                lock (_storageFilesAccessLock)
-                {
-                    fileStream.Write(memory.Span);
-                    newStorageLength += memory.Length;
-                    _storageFileLength = newStorageLength;
-                }
-
-                var record = new IndexRecord(key, new DataReference { StreamStart = streamStart, Length = memory.Length }, dataProperties);
-                _recordsCache.AddOrUpdate(key, (_) => record, (_, _) => record);
-            }
-
-            lock (_storageFilesAccessLock)
-            {
-                FlushFiles();
-            }
-
-            foreach (var key in keys)
-            {
-                _tempRecordsCache!.Remove(key, out _);
             }
         }
 
@@ -121,10 +76,7 @@ namespace NStorage.StorageHandlers
         {
             EnsureNotDisposed();
 
-            if (_recordsCache.TryGetValue(key, out _) || !_tempRecordsCache!.TryAdd(key, null))
-            {
-                throw new ArgumentException($"Key {key} already exists in storage"); // TODO better exception ?
-            }
+            base.EnsureAndBookKey(key);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -132,8 +84,7 @@ namespace NStorage.StorageHandlers
         {
             EnsureNotDisposed();
 
-            _tempRecordsCache!.AddOrUpdate(key, (_) => dataTuple, (_, _) => dataTuple);
-            _recordsQueue!.Enqueue((key, dataTuple));
+            base.Add(key, dataTuple);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -141,9 +92,7 @@ namespace NStorage.StorageHandlers
         {
             EnsureNotDisposed();
 
-            if (_tempRecordsCache!.TryGetValue(key, out var value) && value != null)
-                return true;
-            return _recordsCache.TryGetValue(key, out var recordData) && recordData != null;
+            return base.Contains(key);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -151,13 +100,13 @@ namespace NStorage.StorageHandlers
         {
             EnsureNotDisposed();
 
-            if (_tempRecordsCache!.TryGetValue(key, out var record) && record != null)
-            {
-                outRecord = (record.Value.memory.ToArray(), record.Value.properties);
-                return true;
-            }
-
             return base.TryGetRecord(key, out outRecord);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public override void Flush()
+        {
+            throw new InvalidOperationException($"Flush operation is not supported in {nameof(IntervalFlushStorageHandler)}");
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -178,10 +127,9 @@ namespace NStorage.StorageHandlers
 
             _source.Cancel();
             _flushDisposed.WaitOne();
-            _flushDisposed?.Dispose();
+            _flushDisposed.Dispose();
 
-            _tempRecordsCache!.Clear();
-            _recordsQueue!.Clear();
+            DisposeInternal();
 
             _isDisposed = true;
             _isDisposing = false;

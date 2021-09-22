@@ -45,5 +45,8 @@ namespace NStorage
         /// <param name="key">Unique identifier of the stream</param>
         /// <returns>true if key is present and false otherwise</returns>
         bool Contains(string key);
+
+        // TODO docs
+        void Flush();
     }
 }

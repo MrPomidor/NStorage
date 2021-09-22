@@ -11,5 +11,6 @@ namespace NStorage.StorageHandlers
         void Add(string key, (Memory<byte> memory, DataProperties properties) dataTuple); // TODO why we use memory here ? (remove if incompatible with NET Framework)
         bool TryGetRecord(string key, out (byte[], DataProperties) record);
         bool Contains(string key);
+        void Flush();
     }
 }

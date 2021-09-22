@@ -1,4 +1,6 @@
-﻿namespace NStorage
+﻿using System;
+
+namespace NStorage
 {
     public class StorageConfiguration
     {
@@ -34,7 +36,15 @@
 
         public StorageConfiguration(string workingFolder)
         {
+            if (string.IsNullOrEmpty(workingFolder))
+                throw new ArgumentException(paramName: nameof(workingFolder), message: "Working folder should be defined");
             WorkingFolder = workingFolder;
+        }
+
+        public StorageConfiguration SetFlushModeManual()
+        {
+            FlushMode = FlushMode.Manual;
+            return this;
         }
 
         public StorageConfiguration SetFlushModeDeferred(int? flushIntervalMilliseconds = null)
@@ -48,6 +58,7 @@
 
         public StorageConfiguration EnableEncryption(byte[] aesEncryptionKey)
         {
+            // TODO validate encryption key
             AesEncryptionKey = aesEncryptionKey;
             return this;
         }
@@ -56,7 +67,7 @@
     public enum FlushMode
     {
         AtOnce,
-        Deferred
-        // TODO manual (flush only on manual)
+        Deferred,
+        Manual
     }
 }

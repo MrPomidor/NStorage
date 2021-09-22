@@ -8,9 +8,9 @@ namespace NStorage.StorageHandlers
 {
     // TODO description
     // TODO internal
-    public class AtOnceStorageHandler : StorageHandlerBase
+    public class AtOnceFlushStorageHandler : StorageHandlerBase
     {
-        public AtOnceStorageHandler(
+        public AtOnceFlushStorageHandler(
             FileStream storageFileStream,
             FileStream indexFileStream,
             object storageFilesAccessLock,
@@ -65,6 +65,15 @@ namespace NStorage.StorageHandlers
             EnsureNotDisposed();
 
             return base.TryGetRecord(key, out outRecord);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public override void Flush()
+        {
+            lock (_storageFilesAccessLock)
+            {
+                FlushFiles();
+            }
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

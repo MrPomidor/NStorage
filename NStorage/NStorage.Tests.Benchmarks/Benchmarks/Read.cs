@@ -13,7 +13,7 @@ namespace NStorage.Tests.Benchmarks.Benchmarks
         [Params(5000)]
         public int FilesCount;
 
-        [Params(FlushMode.AtOnce, FlushMode.Deferred)]
+        [Params(FlushMode.AtOnce, FlushMode.Deferred, FlushMode.Manual)]
         public FlushMode IndexFlushMode;
 
         [Params(true, false)]
