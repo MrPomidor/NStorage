@@ -1,15 +1,11 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Collections.Concurrent;
 using System.IO;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using Newtonsoft.Json;
 using NStorage.DataStructure;
 using NStorage.Exceptions;
 using Index = NStorage.DataStructure.Index;
-using System.Threading;
 using System.IO.Compression;
 using System.Security.Cryptography;
 using NStorage.StorageHandlers;
@@ -17,16 +13,12 @@ using System.Runtime.CompilerServices;
 
 namespace NStorage
 {
-    // TODO should be singletone
     public class BinaryStorage : IBinaryStorage
     {
-        private const string IndexFile = "index.json";
-        private const string StorageFile = "storage.bin";
+        private const string IndexFile = "index.dat";
+        private const string StorageFile = "storage.dat";
 
-        private readonly string _indexFilePath;
-        private readonly string _storageFilePath;
-
-        private readonly object _storageFilesAccessLock = new object();
+        private readonly object _storageFilesAccessLock = new();
 
         private readonly FileStream _storageFileStream;
         private readonly FileStream _indexFileStream;
@@ -41,8 +33,14 @@ namespace NStorage
 
         public BinaryStorage(StorageConfiguration configuration)
         {
-            if (string.IsNullOrEmpty(configuration.WorkingFolder))
-                throw new ArgumentException(paramName: nameof(configuration), message: "Working folder should be defined");
+            if (configuration == null)
+                throw new ArgumentNullException(nameof(configuration));
+            if (configuration.AesEncryptionKey != null)
+            {
+                _encryptionEnalbed = true;
+                _aesEncryption_Key = configuration.AesEncryptionKey;
+            }
+
             if (!Directory.Exists(configuration.WorkingFolder))
                 throw new ArgumentException(paramName: nameof(configuration), message: "Working folder should exist");
 
@@ -54,20 +52,10 @@ namespace NStorage
             if (!File.Exists(storageFilePath))
                 File.WriteAllText(storageFilePath, string.Empty);
 
-            _indexFilePath = indexFilePath;
-            _storageFilePath = storageFilePath;
-
-            // TODO validate encryption keys provided
-            if (configuration.AesEncryptionKey != null)
-            {
-                _encryptionEnalbed = true;
-                _aesEncryption_Key = configuration.AesEncryptionKey;
-            }
-
             try
             {
                 //_indexFileStream = File.Open(_indexFilePath, FileMode.Open, FileAccess.ReadWrite, FileShare.None);
-                _indexFileStream = File.Open(_indexFilePath, new FileStreamOptions
+                _indexFileStream = File.Open(indexFilePath, new FileStreamOptions
                 {
                     Mode = FileMode.Open,
                     Access = FileAccess.ReadWrite,
@@ -75,7 +63,7 @@ namespace NStorage
                     Options = FileOptions.RandomAccess
                 });
                 //_storageFileStream = File.Open(_storageFilePath, FileMode.Open, FileAccess.ReadWrite, FileShare.None);
-                _storageFileStream = File.Open(_storageFilePath, new FileStreamOptions
+                _storageFileStream = File.Open(storageFilePath, new FileStreamOptions
                 {
                     Mode = FileMode.Open,
                     Access = FileAccess.ReadWrite,
@@ -86,25 +74,34 @@ namespace NStorage
                 var index = DeserializeIndex(); // for more performace index file should be stored in memory
 
                 CheckIndexNotCorrupted(index);
-                CheckStorageNotCorrupted(index);
+                CheckStorageNotCorrupted(index, _storageFileStream.Length);
+
+                // TODO divide this try/cath to two ???
 
                 var flushMode = configuration.FlushMode;
                 switch (flushMode)
                 {
                     case FlushMode.AtOnce:
-                        _handler = new AtOnceStorageHandler(
+                        _handler = new AtOnceFlushStorageHandler(
                             storageFileStream: _storageFileStream,
                             indexFileStream: _indexFileStream,
                             index: index,
                             storageFilesAccessLock: _storageFilesAccessLock);
                         break;
                     case FlushMode.Deferred:
-                        _handler = new DeferredIntervalStorageHandler(
+                        _handler = new IntervalFlushStorageHandler(
                             storageFileStream: _storageFileStream,
                             indexFileStream: _indexFileStream,
                             storageFilesAccessLock: _storageFilesAccessLock,
                             index: index,
                             flushIntervalMilliseconds: configuration.FlushIntervalMilliseconds ?? DefaultFlushIntervalMiliseconds);
+                        break;
+                    case FlushMode.Manual:
+                        _handler = new ManualFlushStorageHandler(
+                            storageFileStream: _storageFileStream,
+                            indexFileStream: _indexFileStream,
+                            storageFilesAccessLock: _storageFilesAccessLock,
+                            index: index);
                         break;
                     default:
                         throw new InvalidOperationException("Unknown FlushMode"); // TODO better exception, do validation before try/catch
@@ -128,7 +125,7 @@ namespace NStorage
             DisposeInternal(disposing: false, flushBuffers: true);
         }
 
-        private Index DeserializeIndex()
+        private Index DeserializeIndex() // TODO move file processing to distinct handler
         {
             using var streamReader = new StreamReader(_indexFileStream, leaveOpen: true);
             var indexAsTest = streamReader.ReadToEnd();
@@ -150,11 +147,10 @@ namespace NStorage
             }
         }
 
-        private void CheckStorageNotCorrupted(Index index)
+        private void CheckStorageNotCorrupted(Index index, long storageLength)
         {
             var expectedStorageLengthBytes = index.Records.Sum(x => x.DataReference.Length);
             // TODO consider optimization and crop file length if it is greater then expected
-            var storageLength = new FileInfo(_storageFilePath).Length;
             if (storageLength != expectedStorageLengthBytes)
                 throw new StorageCorruptedException($"Storage length is not as expected in summ of index data records. FileLength {storageLength}, expected {expectedStorageLengthBytes}");
         }
@@ -179,7 +175,7 @@ namespace NStorage
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private (Memory<byte> memory, DataProperties properties) GetProcessedMemory(Stream data, StreamInfo parameters)
+        private (Memory<byte> memory, DataProperties properties) GetProcessedMemory(Stream data, StreamInfo parameters) // TODO why we use memory here ? (remove if incompatible with NET Framework)
         {
             if (!parameters.IsCompressed) // not compressed
             {
@@ -269,7 +265,7 @@ namespace NStorage
                 throw new KeyNotFoundException(key);
 
             // TODO check bytes read count
-            return GetProcessedStream(record.Item1, record.Item2);
+            return GetProcessedStream(record.Item1, record.Item2); // TODO rename item1 item2
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -358,6 +354,13 @@ namespace NStorage
             EnsureNotDisposed();
 
             return _handler.Contains(key);
+        }
+
+        public void Flush()
+        {
+            EnsureNotDisposed();
+
+            _handler.Flush();
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

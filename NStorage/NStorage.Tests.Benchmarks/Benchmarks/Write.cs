@@ -1,6 +1,5 @@
 ﻿using BenchmarkDotNet.Attributes;
 //using BenchmarkDotNet.Diagnostics.Windows.Configs;
-using BenchmarkDotNet.Diagnostics.Windows.Configs;
 using BenchmarkDotNet.Jobs;
 using System;
 using System.IO;
@@ -16,7 +15,7 @@ namespace NStorage.Tests.Benchmarks
         [Params(1000)]
         public int FilesCount;
 
-        [Params(FlushMode.AtOnce, FlushMode.Deferred)]
+        [Params(FlushMode.AtOnce, FlushMode.Deferred, FlushMode.Manual)]
         public FlushMode IndexFlushMode;
 
         [Params(true, false)]
@@ -141,8 +140,15 @@ namespace NStorage.Tests.Benchmarks
         {
             var storageConfiguration = new StorageConfiguration(_tempStorageFolderName)
                 .EnableEncryption(_aesKey);
-            if (IndexFlushMode == FlushMode.Deferred)
-                storageConfiguration = storageConfiguration.SetFlushModeDeferred();
+            switch (IndexFlushMode)
+            {
+                case FlushMode.Deferred:
+                    storageConfiguration = storageConfiguration.SetFlushModeDeferred();
+                    break;
+                case FlushMode.Manual:
+                    storageConfiguration = storageConfiguration.SetFlushModeManual();
+                    break;
+            }
             return storageConfiguration;
         }
     }

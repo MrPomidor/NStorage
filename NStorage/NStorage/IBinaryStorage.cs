@@ -1,9 +1,5 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.IO;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace NStorage
 {
@@ -49,5 +45,10 @@ namespace NStorage
         /// <param name="key">Unique identifier of the stream</param>
         /// <returns>true if key is present and false otherwise</returns>
         bool Contains(string key);
+
+        /// <summary>
+        /// Flush buffers, save data to storage, if applicable
+        /// </summary>
+        void Flush();
     }
 }

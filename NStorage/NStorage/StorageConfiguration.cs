@@ -1,37 +1,14 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace NStorage
 {
     public class StorageConfiguration
     {
         /// <summary>
-        /// Maximum size in bytes of the storage file
-        /// Zero means unlimited
-        /// </summary>
-        // TODO public long MaxStorageFile { get; set; }
-
-        /// <summary>
-        /// Maximum size in bytes of the index file
-        /// Zero means unlimited
-        /// </summary>
-        // TODO public long MaxIndexFile { get; set; }
-
-        /// <summary>
-        /// Storage might compress data during persistence,
-        /// if its size is greater than this value
-        /// </summary>
-        // TODO public long CompressionThreshold { get; set; }
-
-        /// <summary>
         /// Folder where implementation should store Index and Storage File
         /// </summary>
         public string WorkingFolder { get; private set; }
 
-        // TODO docs
         public FlushMode FlushMode { get; private set; } = FlushMode.AtOnce;
 
         public int? FlushIntervalMilliseconds { get; private set; }
@@ -40,11 +17,22 @@ namespace NStorage
 
         public StorageConfiguration(string workingFolder)
         {
+            if (string.IsNullOrEmpty(workingFolder))
+                throw new ArgumentException(paramName: nameof(workingFolder), message: "Working folder should be defined");
             WorkingFolder = workingFolder;
+        }
+
+        public StorageConfiguration SetFlushModeManual()
+        {
+            FlushMode = FlushMode.Manual;
+            return this;
         }
 
         public StorageConfiguration SetFlushModeDeferred(int? flushIntervalMilliseconds = null)
         {
+            if (flushIntervalMilliseconds.HasValue && flushIntervalMilliseconds <= 0)
+                throw new ArgumentException(paramName: nameof(flushIntervalMilliseconds), message: "Flush interval value invalid");
+
             FlushMode = FlushMode.Deferred;
             FlushIntervalMilliseconds = flushIntervalMilliseconds;
             return this;
@@ -52,6 +40,9 @@ namespace NStorage
 
         public StorageConfiguration EnableEncryption(byte[] aesEncryptionKey)
         {
+            if (aesEncryptionKey == null)
+                throw new ArgumentNullException(nameof(aesEncryptionKey));
+            // TODO validate encryption key
             AesEncryptionKey = aesEncryptionKey;
             return this;
         }
@@ -60,7 +51,7 @@ namespace NStorage
     public enum FlushMode
     {
         AtOnce,
-        Deferred
-        // TODO manual (flush only on manual)
+        Deferred,
+        Manual
     }
 }
