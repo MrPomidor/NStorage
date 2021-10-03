@@ -5,6 +5,7 @@ using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using NStorage.DataStructure;
+using NStorage.Tracing;
 using Index = NStorage.DataStructure.Index;
 
 namespace NStorage.StorageHandlers
@@ -65,8 +66,9 @@ namespace NStorage.StorageHandlers
                 else
                 {
                     FlushInternal(processingBuffer);
-
                     processingBuffer.Clear();
+
+                    FlushEventSource.Log.FlushAuto();
                 }
             }
         }

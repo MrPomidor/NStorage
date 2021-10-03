@@ -11,6 +11,7 @@ using Newtonsoft.Json;
 using NStorage.DataStructure;
 using NStorage.Exceptions;
 using NStorage.StorageHandlers;
+using NStorage.Tracing;
 using Index = NStorage.DataStructure.Index;
 
 namespace NStorage
@@ -163,9 +164,11 @@ namespace NStorage
                 throw new StorageCorruptedException($"Storage length is not as expected in summ of index data records. FileLength {storageLength}, expected {expectedStorageLengthBytes}");
         }
 
-        public void Add(string key, Stream data, StreamInfo parameters)
+        public void Add(string key, Stream data, StreamInfo? parameters = null)
         {
             EnsureNotDisposed();
+
+            parameters ??= StreamInfo.Empty;
 
             EnsureStreamParametersCorrect(parameters);
 
@@ -173,6 +176,8 @@ namespace NStorage
 
             var dataTuple = GetProcessedMemory(data, parameters);
             _handler.Add(key, dataTuple);
+
+            AddEventSource.Log.AddStream(dataTuple.memory.Length);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -369,6 +374,8 @@ namespace NStorage
             EnsureNotDisposed();
 
             _handler.Flush();
+
+            FlushEventSource.Log.FlushManual();
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
