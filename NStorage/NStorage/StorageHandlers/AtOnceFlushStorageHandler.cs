@@ -1,21 +1,20 @@
-﻿using NStorage.DataStructure;
-using System;
+﻿using System;
 using System.IO;
 using System.Runtime.CompilerServices;
+using NStorage.DataStructure;
 using Index = NStorage.DataStructure.Index;
 
 namespace NStorage.StorageHandlers
 {
     // TODO description
-    // TODO internal
-    public class AtOnceFlushStorageHandler : StorageHandlerBase
+    internal class AtOnceFlushStorageHandler : StorageHandlerBase
     {
         public AtOnceFlushStorageHandler(
             FileStream storageFileStream,
             FileStream indexFileStream,
             object storageFilesAccessLock,
             Index index
-            ): base(storageFileStream, indexFileStream, index, storageFilesAccessLock)
+            ) : base(storageFileStream, indexFileStream, index, storageFilesAccessLock)
         { }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -25,16 +24,16 @@ namespace NStorage.StorageHandlers
 
             long streamLength = dataTuple.memory.Length;
 
-            lock (_storageFilesAccessLock)
+            lock (StorageFilesAccessLock)
             {
-                var fileStream = _storageFileStream;
-                long startPosition = _storageFileLength;
+                var fileStream = StorageFileStream;
+                long startPosition = StorageFileLength;
                 fileStream.Write(dataTuple.memory.Span);
 
                 var record = new IndexRecord(key, new DataReference { StreamStart = startPosition, Length = streamLength }, dataTuple.properties);
-                _recordsCache.AddOrUpdate(key, (_) => record, (_, _) => record);
+                RecordsCache.AddOrUpdate(key, (_) => record, (_, _) => record);
 
-                _storageFileLength += streamLength;
+                StorageFileLength += streamLength;
 
                 FlushFiles();
             }
@@ -45,9 +44,9 @@ namespace NStorage.StorageHandlers
         {
             EnsureNotDisposed();
 
-            if (!_recordsCache.TryAdd(key, null))
+            if (!RecordsCache.TryAdd(key, null))
             {
-                throw new ArgumentException($"Key {key} already exists in storage"); // TODO better exception ?
+                throw new ArgumentException($"Key {key} already exists in storage");
             }
         }
 
@@ -56,7 +55,7 @@ namespace NStorage.StorageHandlers
         {
             EnsureNotDisposed();
 
-            return _recordsCache.TryGetValue(key, out var recordData) && recordData != null;
+            return RecordsCache.TryGetValue(key, out var recordData) && recordData != null;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -70,7 +69,7 @@ namespace NStorage.StorageHandlers
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public override void Flush()
         {
-            lock (_storageFilesAccessLock)
+            lock (StorageFilesAccessLock)
             {
                 FlushFiles();
             }
@@ -92,7 +91,7 @@ namespace NStorage.StorageHandlers
 
             _isDisposing = true;
 
-            lock (_storageFilesAccessLock)
+            lock (StorageFilesAccessLock)
             {
                 FlushFiles();
             }

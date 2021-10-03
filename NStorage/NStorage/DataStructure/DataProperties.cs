@@ -1,6 +1,6 @@
 ﻿namespace NStorage.DataStructure
 {
-    public class DataProperties
+    internal class DataProperties
     {
         public bool IsCompressed { get; set; }
         public bool IsEncrypted { get; set; }

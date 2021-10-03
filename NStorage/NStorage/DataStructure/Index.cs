@@ -2,7 +2,7 @@
 
 namespace NStorage.DataStructure
 {
-    public class Index
+    internal class Index
     {
         // TODO need for pre-calculated properties, such as storage length, position to append, etc
 

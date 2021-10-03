@@ -2,7 +2,7 @@
 
 namespace NStorage.DataStructure
 {
-    public class IndexRecord
+    internal class IndexRecord
     {
         public IndexRecord(string key, DataReference dataReference, DataProperties properties)
         {

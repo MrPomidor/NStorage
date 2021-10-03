@@ -1,15 +1,15 @@
-﻿using NStorage.DataStructure;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
+using NStorage.DataStructure;
 using Index = NStorage.DataStructure.Index;
 
 namespace NStorage.StorageHandlers
 {
-    public class IntervalFlushStorageHandler : DeferredFlushStorageHandlerBase
+    internal class IntervalFlushStorageHandler : DeferredFlushStorageHandlerBase
     {
         private readonly int _flushIntervalMilliseconds;
 
@@ -36,10 +36,10 @@ namespace NStorage.StorageHandlers
             base.Init();
 
             _token = _source.Token;
-            Task.Run(OnTick, _token); // TODO on tick
+            Task.Run(FlushLoop, _token);
         }
 
-        private async Task OnTick()
+        private async Task FlushLoop()
         {
             var processingBuffer = new List<(string key, (Memory<byte> memory, DataProperties properties))>();
             while (true)

@@ -1,22 +1,22 @@
-﻿using NStorage.DataStructure;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Runtime.CompilerServices;
+using NStorage.DataStructure;
 using Index = NStorage.DataStructure.Index;
 
 namespace NStorage.StorageHandlers
 {
-    public class ManualFlushStorageHandler : DeferredFlushStorageHandlerBase
+    internal class ManualFlushStorageHandler : DeferredFlushStorageHandlerBase
     {
         private readonly object _flushLock = new();
 
         public ManualFlushStorageHandler(
-            FileStream storageFileStream, 
+            FileStream storageFileStream,
             FileStream indexFileStream,
             Index index,
-            object storageFilesAccessLock) 
+            object storageFilesAccessLock)
             : base(storageFileStream, indexFileStream, index, storageFilesAccessLock)
         {
         }
