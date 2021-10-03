@@ -59,7 +59,7 @@ namespace NStorage.Tests.Integration
         {
             var storageConfiguration = new StorageConfiguration(storageFolder)
                 .EnableEncryption(aesKey);
-            switch(IndexFlushModes[index])
+            switch (IndexFlushModes[index])
             {
                 case FlushMode.Deferred:
                     storageConfiguration = storageConfiguration.SetFlushModeDeferred();

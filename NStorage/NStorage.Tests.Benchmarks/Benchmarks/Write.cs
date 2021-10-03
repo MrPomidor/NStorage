@@ -1,16 +1,12 @@
-﻿using BenchmarkDotNet.Attributes;
-//using BenchmarkDotNet.Diagnostics.Windows.Configs;
-using BenchmarkDotNet.Jobs;
-using System;
-using System.IO;
+﻿using System.IO;
 using System.Linq;
 using System.Security.Cryptography;
+using BenchmarkDotNet.Attributes;
+using NStorage.Tests.Benchmarks.Benchmarks;
 
 namespace NStorage.Tests.Benchmarks
 {
-    // TODO target count, launch count ?
-    [SimpleJob(RuntimeMoniker.Net60, targetCount:20)]
-    public class Write
+    public class Write : BenchmarkBase
     {
         [Params(1000)]
         public int FilesCount;
@@ -40,7 +36,7 @@ namespace NStorage.Tests.Benchmarks
             _fileStreams = new (Stream, string)[FilesCount];
 
             var files = Directory.EnumerateFiles(Consts.GetLargeTestDataSetFolder(), "*", SearchOption.AllDirectories).Take(FilesCount).ToArray();
-            for (int i =0; i < files.Length; i++)
+            for (int i = 0; i < files.Length; i++)
             {
                 var fileName = files[i];
                 var memStream = new MemoryStream();
@@ -78,26 +74,11 @@ namespace NStorage.Tests.Benchmarks
             _tempStorageFolderName = GetTempTestFolderPath("Benchmarks/Write");
         }
 
-        // TODO common class
-        private string GetTempTestFolderPath(string testName)
-        {
-            var guid = Guid.NewGuid().ToString();
-            var solutionFolder = Directory.GetCurrentDirectory();
-            var path = Path.Combine(solutionFolder, testName, guid);
-            Directory.CreateDirectory(path);
-            return path;
-        }
-
         [IterationCleanup]
         public void IterationCleanup()
         {
             CleanupTest(_tempStorageFolderName);
             _tempStorageFolderName = null;
-        }
-
-        private void CleanupTest(string tempTestFolder)
-        {
-            Directory.Delete(tempTestFolder, true);
         }
 
         private StreamInfo GetStreamInfo()
@@ -129,9 +110,9 @@ namespace NStorage.Tests.Benchmarks
             var streamInfo = GetStreamInfo();
             using (var storage = new BinaryStorage(GetStorageConfiguration()))
             {
-                foreach(var s in _fileStreams)
+                foreach (var (stream, fileName) in _fileStreams)
                 {
-                    storage.Add(s.fileName, s.stream, streamInfo);
+                    storage.Add(fileName, stream, streamInfo);
                 }
             }
         }

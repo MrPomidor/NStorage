@@ -1,23 +1,23 @@
-﻿using NStorage.DataStructure;
-using System;
+﻿using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Runtime.CompilerServices;
+using NStorage.DataStructure;
 using Index = NStorage.DataStructure.Index; // TODO rename index
 
 namespace NStorage.StorageHandlers
 {
-    public abstract class DeferredFlushStorageHandlerBase : StorageHandlerBase
+    internal abstract class DeferredFlushStorageHandlerBase : StorageHandlerBase
     {
         protected readonly ConcurrentDictionary<string, (Memory<byte> memory, DataProperties properties)?> _tempRecordsCache;
         protected readonly ConcurrentQueue<(string key, (Memory<byte> memory, DataProperties properties))> _recordsQueue;
 
         protected DeferredFlushStorageHandlerBase(
-            FileStream storageFileStream, 
-            FileStream indexFileStream, 
-            Index index, 
-            object storageFilesAccessLock) 
+            FileStream storageFileStream,
+            FileStream indexFileStream,
+            Index index,
+            object storageFilesAccessLock)
             : base(storageFileStream, indexFileStream, index, storageFilesAccessLock)
         {
             _tempRecordsCache = new ConcurrentDictionary<string, (Memory<byte> memory, DataProperties properties)?>();
@@ -27,7 +27,7 @@ namespace NStorage.StorageHandlers
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public override void EnsureAndBookKey(string key)
         {
-            if (_recordsCache.TryGetValue(key, out _) || !_tempRecordsCache.TryAdd(key, null))
+            if (RecordsCache.TryGetValue(key, out _) || !_tempRecordsCache.TryAdd(key, null))
             {
                 throw new ArgumentException($"Key {key} already exists in storage"); // TODO better exception ?
             }
@@ -45,7 +45,7 @@ namespace NStorage.StorageHandlers
         {
             if (_tempRecordsCache.TryGetValue(key, out var value) && value != null)
                 return true;
-            return _recordsCache.TryGetValue(key, out var recordData) && recordData != null;
+            return RecordsCache.TryGetValue(key, out var recordData) && recordData != null;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -62,10 +62,10 @@ namespace NStorage.StorageHandlers
 
         protected void FlushInternal(List<(string key, (Memory<byte> memory, DataProperties properties))> processingBuffer)
         {
-            var newStorageLength = _storageFileLength;
+            var newStorageLength = StorageFileLength;
 
             var keys = new List<string>();
-            var fileStream = _storageFileStream;
+            var fileStream = StorageFileStream;
 
             foreach (var item in processingBuffer)
             {
@@ -75,18 +75,18 @@ namespace NStorage.StorageHandlers
                 keys.Add(key);
                 (var memory, var dataProperties) = item.Item2;
 
-                lock (_storageFilesAccessLock)
+                lock (StorageFilesAccessLock)
                 {
                     fileStream.Write(memory.Span);
                     newStorageLength += memory.Length;
-                    _storageFileLength = newStorageLength;
+                    StorageFileLength = newStorageLength;
                 }
 
                 var record = new IndexRecord(key, new DataReference { StreamStart = streamStart, Length = memory.Length }, dataProperties);
-                _recordsCache.AddOrUpdate(key, (_) => record, (_, _) => record);
+                RecordsCache.AddOrUpdate(key, (_) => record, (_, _) => record);
             }
 
-            lock (_storageFilesAccessLock)
+            lock (StorageFilesAccessLock)
             {
                 FlushFiles();
             }

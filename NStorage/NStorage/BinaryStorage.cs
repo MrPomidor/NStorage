@@ -1,15 +1,17 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
+using System.IO.Compression;
 using System.Linq;
+using System.Runtime.CompilerServices;
+using System.Security.Cryptography;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using Newtonsoft.Json;
 using NStorage.DataStructure;
 using NStorage.Exceptions;
-using Index = NStorage.DataStructure.Index;
-using System.IO.Compression;
-using System.Security.Cryptography;
 using NStorage.StorageHandlers;
-using System.Runtime.CompilerServices;
+using Index = NStorage.DataStructure.Index;
 
 namespace NStorage
 {
@@ -17,24 +19,31 @@ namespace NStorage
     {
         private const string IndexFile = "index.dat";
         private const string StorageFile = "storage.dat";
+        private const int AesEncryption_IVLength = 16; // TODO revisit
+        private const int DefaultFlushIntervalMiliseconds = 100;
+        private const string LogPrefix = $"{nameof(BinaryStorage)}::";
 
         private readonly object _storageFilesAccessLock = new();
 
         private readonly FileStream _storageFileStream;
         private readonly FileStream _indexFileStream;
 
-        private const int AesEncryption_IVLength = 16;
         private readonly byte[]? _aesEncryption_Key;
         private readonly bool _encryptionEnalbed;
 
-        private const int DefaultFlushIntervalMiliseconds = 100;
-
+        private readonly ILogger _logger;
         private readonly IStorageHandler _handler;
 
-        public BinaryStorage(StorageConfiguration configuration)
+        public BinaryStorage(StorageConfiguration configuration) : this(logger: null, configuration) { }
+
+        public BinaryStorage(ILogger? logger,
+            StorageConfiguration configuration)
         {
             if (configuration == null)
                 throw new ArgumentNullException(nameof(configuration));
+
+            _logger = logger ?? NullLogger.Instance;
+
             if (configuration.AesEncryptionKey != null)
             {
                 _encryptionEnalbed = true;
@@ -104,15 +113,14 @@ namespace NStorage
                             index: index);
                         break;
                     default:
-                        throw new InvalidOperationException("Unknown FlushMode"); // TODO better exception, do validation before try/catch
+                        throw new ArgumentOutOfRangeException("Unknown FlushMode");
                 }
                 _handler.Init();
             }
             catch (Exception ex)
             {
-                // TODO log it somewhere
+                _logger.LogError(ex, $"{LogPrefix}Could not initialize BinaryStorage");
                 DisposeInternal(disposing: false, flushBuffers: false);
-
                 throw;
             }
 
@@ -171,7 +179,7 @@ namespace NStorage
         private void EnsureStreamParametersCorrect(StreamInfo parameters)
         {
             if (parameters.IsEncrypted && !_encryptionEnalbed)
-                throw new InvalidOperationException("Encryption was not configured in StorageConfiguration"); // TODO some exception
+                throw new ArgumentException(message: "Encryption was not configured in StorageConfiguration", paramName: nameof(parameters));
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -224,7 +232,7 @@ namespace NStorage
         private MemoryStream GetEncryptedStream(Stream dataStream)
         {
             var resultStream = new MemoryStream(); // TODO memstream pooling
-            using (var aes = Aes.Create()) // TODO create instance variable ??
+            using (var aes = Aes.Create())
             {
                 var iv = aes.IV;
                 resultStream.Write(iv, 0, iv.Length);
@@ -242,7 +250,7 @@ namespace NStorage
         private MemoryStream GetCompressedStream(Stream dataStream)
         {
             var resultStream = new MemoryStream(); // TODO memstream pooling
-            using (var stream = new DeflateStream(resultStream, CompressionMode.Compress, leaveOpen:true))
+            using (var stream = new DeflateStream(resultStream, CompressionMode.Compress, leaveOpen: true))
             {
                 dataStream.CopyTo(stream);
                 stream.Flush();
@@ -265,7 +273,7 @@ namespace NStorage
                 throw new KeyNotFoundException(key);
 
             // TODO check bytes read count
-            return GetProcessedStream(record.Item1, record.Item2); // TODO rename item1 item2
+            return GetProcessedStream(record.recordBytes, record.recordProperties);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -315,7 +323,7 @@ namespace NStorage
         private void EnsureDataPropertiesCorrect(DataProperties dataProperties)
         {
             if (dataProperties.IsEncrypted && !_encryptionEnalbed)
-                throw new InvalidOperationException("Encryption was not configured in StorageConfiguration"); // TODO some exception
+                throw new ArgumentException(message: "Item encrypted. Configure encryption in StorageConfiguration");
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -374,12 +382,15 @@ namespace NStorage
         private volatile bool _isDisposing = false;
         private void DisposeInternal(bool disposing, bool flushBuffers)
         {
-            // TODO log fact of calling dispose from finalizer
-
             if (_isDisposed)
                 return;
 
             _isDisposing = true;
+
+            if (!disposing)
+            {
+                _logger.LogWarning($"{LogPrefix}Calling {nameof(DisposeInternal)} outside of Dispose");
+            }
 
             if (flushBuffers) // TODO revisit this logic
             {
@@ -389,7 +400,7 @@ namespace NStorage
                 }
                 catch (Exception ex)
                 {
-                    // TODO what to do if file could not be flushed ?
+                    _logger.LogError(ex, $"{LogPrefix}Error occured on disposing handler");
                 }
             }
 
@@ -400,7 +411,7 @@ namespace NStorage
             }
             catch (Exception ex)
             {
-                // TODO what to do if file could not be flushed ?
+                _logger.LogError(ex, $"{LogPrefix}Error occurred on disposing file streams");
             }
 
             _isDisposed = true;

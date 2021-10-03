@@ -1,14 +1,11 @@
-﻿using BenchmarkDotNet.Attributes;
-using BenchmarkDotNet.Jobs;
-using System;
-using System.IO;
+﻿using System.IO;
 using System.Linq;
 using System.Security.Cryptography;
+using BenchmarkDotNet.Attributes;
 
 namespace NStorage.Tests.Benchmarks.Benchmarks
 {
-    [SimpleJob(RuntimeMoniker.Net60, targetCount: 20)]
-    public class Read
+    public class Read : BenchmarkBase
     {
         [Params(5000)]
         public int FilesCount;
@@ -59,22 +56,6 @@ namespace NStorage.Tests.Benchmarks.Benchmarks
         public void GlobalCleanup()
         {
             CleanupTest(_tempStorageFolderName);
-        }
-
-
-        // TODO common class
-        private string GetTempTestFolderPath(string testName)
-        {
-            var guid = Guid.NewGuid().ToString();
-            var solutionFolder = Directory.GetCurrentDirectory();
-            var path = Path.Combine(solutionFolder, testName, guid);
-            Directory.CreateDirectory(path);
-            return path;
-        }
-
-        private void CleanupTest(string tempTestFolder)
-        {
-            Directory.Delete(tempTestFolder, true);
         }
 
         [Benchmark]
