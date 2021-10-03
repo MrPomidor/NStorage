@@ -1,5 +1,6 @@
 ﻿namespace NStorage
 {
+    // TODO make struct
     public class StreamInfo
     {
         public static readonly StreamInfo Empty = new StreamInfo();

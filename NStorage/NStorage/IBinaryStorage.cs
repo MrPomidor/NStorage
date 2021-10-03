@@ -21,7 +21,7 @@ namespace NStorage
         /// <exception cref="System.IO.IOException">
         ///  I/O exception occurred during persisting data
         /// </exception>
-        void Add(string key, Stream data, StreamInfo parameters);
+        void Add(string key, Stream data, StreamInfo? parameters = null);
 
         /// <summary>
         /// Get stream with data from the storage
