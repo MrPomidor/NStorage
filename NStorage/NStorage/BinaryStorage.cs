@@ -7,7 +7,6 @@ using System.Runtime.CompilerServices;
 using System.Security.Cryptography;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
-using Newtonsoft.Json;
 using NStorage.DataStructure;
 using NStorage.Exceptions;
 using NStorage.StorageHandlers;
@@ -34,6 +33,7 @@ namespace NStorage
 
         private readonly ILogger _logger;
         private readonly IStorageHandler _handler;
+        private readonly IIndexStorageHandler _indexHandler;
 
         public BinaryStorage(StorageConfiguration configuration) : this(logger: null, configuration) { }
 
@@ -81,7 +81,9 @@ namespace NStorage
                     Options = FileOptions.RandomAccess
                 });
 
-                var index = DeserializeIndex(); // for more performace index file should be stored in memory
+                _indexHandler = new JsonIndexStorageHandler(_indexFileStream);
+
+                var index = _indexHandler.DeserializeIndex(); // for more performace index file should be stored in memory
 
                 CheckIndexNotCorrupted(index);
                 CheckStorageNotCorrupted(index, _storageFileStream.Length);
@@ -94,14 +96,14 @@ namespace NStorage
                     case FlushMode.AtOnce:
                         _handler = new AtOnceFlushStorageHandler(
                             storageFileStream: _storageFileStream,
-                            indexFileStream: _indexFileStream,
+                            indexStorageHandler: _indexHandler,
                             index: index,
                             storageFilesAccessLock: _storageFilesAccessLock);
                         break;
                     case FlushMode.Deferred:
                         _handler = new IntervalFlushStorageHandler(
                             storageFileStream: _storageFileStream,
-                            indexFileStream: _indexFileStream,
+                            indexStorageHandler: _indexHandler,
                             storageFilesAccessLock: _storageFilesAccessLock,
                             index: index,
                             flushIntervalMilliseconds: configuration.FlushIntervalMilliseconds ?? DefaultFlushIntervalMiliseconds);
@@ -109,7 +111,7 @@ namespace NStorage
                     case FlushMode.Manual:
                         _handler = new ManualFlushStorageHandler(
                             storageFileStream: _storageFileStream,
-                            indexFileStream: _indexFileStream,
+                            indexStorageHandler: _indexHandler,
                             storageFilesAccessLock: _storageFilesAccessLock,
                             index: index);
                         break;
@@ -132,13 +134,6 @@ namespace NStorage
         ~BinaryStorage()
         {
             DisposeInternal(disposing: false, flushBuffers: true);
-        }
-
-        private Index DeserializeIndex() // TODO move file processing to distinct handler
-        {
-            using var streamReader = new StreamReader(_indexFileStream, leaveOpen: true);
-            var indexAsTest = streamReader.ReadToEnd();
-            return JsonConvert.DeserializeObject<Index>(indexAsTest) ?? new Index();
         }
 
         private void CheckIndexNotCorrupted(Index index)

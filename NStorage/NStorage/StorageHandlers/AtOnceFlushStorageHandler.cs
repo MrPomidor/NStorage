@@ -11,10 +11,10 @@ namespace NStorage.StorageHandlers
     {
         public AtOnceFlushStorageHandler(
             FileStream storageFileStream,
-            FileStream indexFileStream,
+            IIndexStorageHandler indexStorageHandler,
             object storageFilesAccessLock,
             Index index
-            ) : base(storageFileStream, indexFileStream, index, storageFilesAccessLock)
+            ) : base(storageFileStream, indexStorageHandler, index, storageFilesAccessLock)
         { }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

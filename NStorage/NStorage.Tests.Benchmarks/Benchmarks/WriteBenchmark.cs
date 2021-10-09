@@ -6,7 +6,7 @@ using NStorage.Tests.Benchmarks.Benchmarks;
 
 namespace NStorage.Tests.Benchmarks
 {
-    public class Write : BenchmarkBase
+    public class WriteBenchmark : BenchmarkBase
     {
         [Params(1000)]
         public int FilesCount;

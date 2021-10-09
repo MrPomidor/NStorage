@@ -21,11 +21,11 @@ namespace NStorage.StorageHandlers
 
         public IntervalFlushStorageHandler(
              FileStream storageFileStream,
-             FileStream indexFileStream,
+             IIndexStorageHandler indexStorageHandler,
              object storageFilesAccessLock,
              Index index,
              int flushIntervalMilliseconds)
-            : base(storageFileStream, indexFileStream, index, storageFilesAccessLock)
+            : base(storageFileStream, indexStorageHandler, index, storageFilesAccessLock)
         {
             _flushIntervalMilliseconds = flushIntervalMilliseconds;
         }

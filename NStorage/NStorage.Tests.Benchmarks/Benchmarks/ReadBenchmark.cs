@@ -5,7 +5,7 @@ using BenchmarkDotNet.Attributes;
 
 namespace NStorage.Tests.Benchmarks.Benchmarks
 {
-    public class Read : BenchmarkBase
+    public class ReadBenchmark : BenchmarkBase
     {
         [Params(5000)]
         public int FilesCount;

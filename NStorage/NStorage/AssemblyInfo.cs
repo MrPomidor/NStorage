@@ -17,3 +17,4 @@ using System.Runtime.InteropServices;
 
 [assembly: Guid("a5891e55-995d-43a6-8894-f23f398b10d0")]
 [assembly: InternalsVisibleTo("NStorage.Tests")]
+[assembly: InternalsVisibleTo("NStorage.Tests.Benchmarks")]

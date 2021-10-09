@@ -15,10 +15,10 @@ namespace NStorage.StorageHandlers
 
         protected DeferredFlushStorageHandlerBase(
             FileStream storageFileStream,
-            FileStream indexFileStream,
+            IIndexStorageHandler indexStorageHandler,
             Index index,
             object storageFilesAccessLock)
-            : base(storageFileStream, indexFileStream, index, storageFilesAccessLock)
+            : base(storageFileStream, indexStorageHandler, index, storageFilesAccessLock)
         {
             _tempRecordsCache = new ConcurrentDictionary<string, (Memory<byte> memory, DataProperties properties)?>();
             _recordsQueue = new ConcurrentQueue<(string key, (Memory<byte> memory, DataProperties properties))>();

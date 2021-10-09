@@ -14,10 +14,10 @@ namespace NStorage.StorageHandlers
 
         public ManualFlushStorageHandler(
             FileStream storageFileStream,
-            FileStream indexFileStream,
+            IIndexStorageHandler indexStorageHandler,
             Index index,
             object storageFilesAccessLock)
-            : base(storageFileStream, indexFileStream, index, storageFilesAccessLock)
+            : base(storageFileStream, indexStorageHandler, index, storageFilesAccessLock)
         {
         }
 
