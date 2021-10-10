@@ -1,5 +1,6 @@
 {
     "files.exclude": {
-        "**/TestData": true
+        "**/LargeTestData": true,
+        "**/SmallTestData": true
     }
 }

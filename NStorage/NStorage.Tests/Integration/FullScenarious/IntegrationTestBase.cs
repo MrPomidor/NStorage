@@ -2,6 +2,7 @@
 using System.IO;
 using System.Linq;
 using System.Security.Cryptography;
+using NStorage.Tests.Common;
 
 namespace NStorage.Tests.Integration.FullScenarious
 {
@@ -100,7 +101,7 @@ namespace NStorage.Tests.Integration.FullScenarious
 
         private (string storageFilesFolder, string testFilderFolder) GetMainArgs(string tempTestFolder)
         {
-            var testDataPath = Consts.GetLargeTestDataSetFolder();
+            var testDataPath = TestConsts.GetSmallTestDataSetFolder();
             var storagePath = Path.Combine(tempTestFolder, "Storage");
             Directory.CreateDirectory(storagePath);
             return (storagePath, testDataPath);

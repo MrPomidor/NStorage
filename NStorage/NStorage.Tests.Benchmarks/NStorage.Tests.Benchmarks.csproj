@@ -17,6 +17,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\NStorage.Tests.Common\NStorage.Tests.Common.csproj" />
     <ProjectReference Include="..\NStorage\NStorage.csproj" />
   </ItemGroup>
 

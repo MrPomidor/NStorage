@@ -350,4 +350,5 @@ MigrationBackup/
 .ionide/
 
 NOTES
-**/TestData/*.*
+**/LargeTestData/*.*
+**/SmallTestData/*.*

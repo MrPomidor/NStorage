@@ -3,11 +3,15 @@ using System.Linq;
 using System.Security.Cryptography;
 using BenchmarkDotNet.Attributes;
 using NStorage.Tests.Benchmarks.Benchmarks;
+using NStorage.Tests.Common;
 
 namespace NStorage.Tests.Benchmarks
 {
     public class WriteBenchmark : BenchmarkBase
     {
+        [Params(TestDataSet.SmallFiles)]
+        public TestDataSet DataSet;
+
         [Params(1000)]
         public int FilesCount;
 
@@ -35,7 +39,7 @@ namespace NStorage.Tests.Benchmarks
 
             _fileStreams = new (Stream, string)[FilesCount];
 
-            var files = Directory.EnumerateFiles(Consts.GetLargeTestDataSetFolder(), "*", SearchOption.AllDirectories).Take(FilesCount).ToArray();
+            var files = Directory.EnumerateFiles(TestConsts.GetDataSetFolder(DataSet), "*", SearchOption.AllDirectories).Take(FilesCount).ToArray();
             for (int i = 0; i < files.Length; i++)
             {
                 var fileName = files[i];
@@ -124,7 +128,7 @@ namespace NStorage.Tests.Benchmarks
             switch (IndexFlushMode)
             {
                 case FlushMode.Deferred:
-                    storageConfiguration = storageConfiguration.SetFlushModeDeferred();
+                    storageConfiguration = storageConfiguration.SetFlushModeDeferred(flushIntervalMilliseconds: 50);
                     break;
                 case FlushMode.Manual:
                     storageConfiguration = storageConfiguration.SetFlushModeManual();

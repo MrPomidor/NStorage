@@ -2,12 +2,16 @@
 using System.Linq;
 using System.Security.Cryptography;
 using BenchmarkDotNet.Attributes;
+using NStorage.Tests.Common;
 
 namespace NStorage.Tests.Benchmarks.Benchmarks
 {
     public class ReadBenchmark : BenchmarkBase
     {
-        [Params(5000)]
+        [Params(TestDataSet.SmallFiles)]
+        public TestDataSet DataSet;
+
+        [Params(1000)]
         public int FilesCount;
 
         [Params(FlushMode.AtOnce, FlushMode.Deferred, FlushMode.Manual)]
@@ -27,7 +31,7 @@ namespace NStorage.Tests.Benchmarks.Benchmarks
         [GlobalSetup]
         public void GlobalSetup()
         {
-            _tempStorageFolderName = GetTempTestFolderPath("Benchmarks/Write");
+            _tempStorageFolderName = GetTempTestFolderPath("Benchmarks/Read");
             using (var aes = Aes.Create())
             {
                 _aesKey = aes.Key;
@@ -38,7 +42,7 @@ namespace NStorage.Tests.Benchmarks.Benchmarks
 
             using (var storage = new BinaryStorage(new StorageConfiguration(_tempStorageFolderName).EnableEncryption(_aesKey)))
             {
-                var files = Directory.EnumerateFiles(Consts.GetLargeTestDataSetFolder(), "*", SearchOption.AllDirectories).Take(FilesCount).ToArray();
+                var files = Directory.EnumerateFiles(TestConsts.GetDataSetFolder(DataSet), "*", SearchOption.AllDirectories).Take(FilesCount).ToArray();
                 _fileNames = new string[files.Length];
                 for (int i = 0; i < files.Length; i++)
                 {
@@ -91,7 +95,7 @@ namespace NStorage.Tests.Benchmarks.Benchmarks
             switch (IndexFlushMode)
             {
                 case FlushMode.Deferred:
-                    storageConfiguration = storageConfiguration.SetFlushModeDeferred();
+                    storageConfiguration = storageConfiguration.SetFlushModeDeferred(flushIntervalMilliseconds:50);
                     break;
                 case FlushMode.Manual:
                     storageConfiguration = storageConfiguration.SetFlushModeManual();

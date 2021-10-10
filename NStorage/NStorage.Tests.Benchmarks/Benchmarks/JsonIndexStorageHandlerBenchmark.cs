@@ -8,7 +8,7 @@ namespace NStorage.Tests.Benchmarks.Benchmarks
 {
     public class JsonIndexStorageHandlerBenchmark : BenchmarkBase
     {
-        [Params(100)]
+        [Params(500)]
         public int SerializeDeserializeCycles;
 
         private string _tempStorageFolderName;
@@ -32,7 +32,7 @@ namespace NStorage.Tests.Benchmarks.Benchmarks
             });
             _indexStorageHandler = new JsonIndexStorageHandler(_indexFileStream);
             _index = new Index();
-            for (int i = 0; i < 10000; i++)
+            for (int i = 0; i < 100; i++)
             {
                 var key = $"key{i}";
                 // TODO make data correct ?
