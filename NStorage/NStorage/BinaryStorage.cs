@@ -185,7 +185,7 @@ namespace NStorage
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private (Memory<byte> memory, DataProperties properties) GetProcessedMemory(Stream data, StreamInfo parameters) // TODO why we use memory here ? (remove if incompatible with NET Framework)
+        private (byte[] memory, DataProperties properties) GetProcessedMemory(Stream data, StreamInfo parameters)
         {
             if (!parameters.IsCompressed) // not compressed
             {

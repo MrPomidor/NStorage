@@ -42,7 +42,7 @@ namespace NStorage.StorageHandlers
 
         private async Task FlushLoop()
         {
-            var processingBuffer = new List<(string key, (Memory<byte> memory, DataProperties properties))>();
+            var processingBuffer = new List<(string key, (byte[] memory, DataProperties properties))>();
             while (true)
             {
                 if (!_token.IsCancellationRequested)
@@ -82,7 +82,7 @@ namespace NStorage.StorageHandlers
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public override void Add(string key, (Memory<byte> memory, DataProperties properties) dataTuple)
+        public override void Add(string key, (byte[] memory, DataProperties properties) dataTuple)
         {
             EnsureNotDisposed();
 
