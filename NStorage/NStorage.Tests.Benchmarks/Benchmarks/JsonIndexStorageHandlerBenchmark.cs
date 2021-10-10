@@ -9,7 +9,7 @@ namespace NStorage.Tests.Benchmarks.Benchmarks
     public class JsonIndexStorageHandlerBenchmark : BenchmarkBase
     {
         [Params(500)]
-        public int SerializeDeserializeCycles;
+        public int CyclesCount;
 
         private string _tempStorageFolderName;
         private FileStream _indexFileStream;
@@ -36,16 +36,34 @@ namespace NStorage.Tests.Benchmarks.Benchmarks
             {
                 var key = $"key{i}";
                 // TODO make data correct ?
-                _index.Records.Add(new IndexRecord(key, new DataReference() { StreamStart = 1000, Length = 100000 }, new DataProperties { IsCompressed = false, IsEncrypted = false }));
+                _index.Records[key] = new IndexRecord(new DataReference() { StreamStart = 1000, Length = 100000 }, new DataProperties { IsCompressed = false, IsEncrypted = false });
             }
         }
 
         [Benchmark]
         public void SerializeDeserialize()
         {
-            for (int i = 0; i < SerializeDeserializeCycles; i++)
+            for (int i = 0; i < CyclesCount; i++)
             {
                 _indexStorageHandler.SerializeIndex(_index);
+                _index = _indexStorageHandler.DeserializeIndex();
+            }
+        }
+
+        [Benchmark]
+        public void Serialize()
+        {
+            for (int i = 0; i < CyclesCount; i++)
+            {
+                _indexStorageHandler.SerializeIndex(_index);
+            }
+        }
+
+        [Benchmark]
+        public void Deserialize()
+        {
+            for (int i = 0; i < CyclesCount; i++)
+            {
                 _index = _indexStorageHandler.DeserializeIndex();
             }
         }

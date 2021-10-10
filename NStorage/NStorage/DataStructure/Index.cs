@@ -6,6 +6,6 @@ namespace NStorage.DataStructure
     {
         // TODO need for pre-calculated properties, such as storage length, position to append, etc
 
-        public List<IndexRecord> Records { get; set; } = new List<IndexRecord>();
+        public Dictionary<string, IndexRecord> Records { get; set; } = new Dictionary<string, IndexRecord>();
     }
 }

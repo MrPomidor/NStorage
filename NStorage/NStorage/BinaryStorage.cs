@@ -139,21 +139,23 @@ namespace NStorage
         private void CheckIndexNotCorrupted(Index index)
         {
             long lastEndPosition = 0;
-            for (int i = 0; i < index.Records.Count; i++)
+            var kvp = index.Records.Select(kvp => kvp).OrderBy(x => x.Value.DataReference.StreamStart).ToArray();
+            for (int i = 0; i < kvp.Length; i++)
             {
-                var record = index.Records[i];
+                var record = kvp[i];
+                var dataReference = record.Value.DataReference;
                 if (lastEndPosition > 0)
                 {
-                    if (record.DataReference.StreamStart != lastEndPosition)
-                        throw new IndexCorruptedException($"Record {i} with key {record.Key} expect to be started at {lastEndPosition}, but started at {record.DataReference.StreamStart}");
+                    if (dataReference.StreamStart != lastEndPosition)
+                        throw new IndexCorruptedException($"Record {i} with key {record.Key} expect to be started at {lastEndPosition}, but started at {dataReference.StreamStart}");
                 }
-                lastEndPosition = record.DataReference.StreamStart + record.DataReference.Length;
+                lastEndPosition = dataReference.StreamStart + dataReference.Length;
             }
         }
 
         private void CheckStorageNotCorrupted(Index index, long storageLength)
         {
-            var expectedStorageLengthBytes = index.Records.Sum(x => x.DataReference.Length);
+            var expectedStorageLengthBytes = index.Records.Values.Sum(x => x.DataReference.Length);
             // TODO consider optimization and crop file length if it is greater then expected
             if (storageLength != expectedStorageLengthBytes)
                 throw new StorageCorruptedException($"Storage length is not as expected in summ of index data records. FileLength {storageLength}, expected {expectedStorageLengthBytes}");

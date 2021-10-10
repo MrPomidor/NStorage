@@ -30,7 +30,7 @@ namespace NStorage.StorageHandlers
                 long startPosition = StorageFileLength;
                 fileStream.Write(dataTuple.memory.Span);
 
-                var record = new IndexRecord(key, new DataReference { StreamStart = startPosition, Length = streamLength }, dataTuple.properties);
+                var record = new IndexRecord(new DataReference { StreamStart = startPosition, Length = streamLength }, dataTuple.properties);
                 RecordsCache.AddOrUpdate(key, (_) => record, (_, _) => record);
 
                 StorageFileLength += streamLength;

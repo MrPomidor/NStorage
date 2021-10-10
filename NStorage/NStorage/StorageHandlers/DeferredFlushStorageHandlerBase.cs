@@ -82,7 +82,7 @@ namespace NStorage.StorageHandlers
                     StorageFileLength = newStorageLength;
                 }
 
-                var record = new IndexRecord(key, new DataReference { StreamStart = streamStart, Length = memory.Length }, dataProperties);
+                var record = new IndexRecord(new DataReference { StreamStart = streamStart, Length = memory.Length }, dataProperties);
                 RecordsCache.AddOrUpdate(key, (_) => record, (_, _) => record);
             }
 

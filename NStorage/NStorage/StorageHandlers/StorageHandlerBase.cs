@@ -28,7 +28,7 @@ namespace NStorage.StorageHandlers
             StorageFileStream = storageFileStream;
             IndexStorageHandler = indexStorageHandler;
 
-            RecordsCache = new ConcurrentDictionary<string, IndexRecord>(index.Records.ToDictionary(item => item.Key));
+            RecordsCache = new ConcurrentDictionary<string, IndexRecord>(index.Records);
         }
 
         public virtual void Init()
@@ -78,7 +78,7 @@ namespace NStorage.StorageHandlers
 
         protected void FlushIndexFile()
         {
-            var index = new Index { Records = RecordsCache.Values.ToArray().Where(x => x != null).OrderBy(x => x.DataReference.StreamStart).ToList() };
+            var index = new Index { Records = RecordsCache.ToArray().Where(x => x.Value != null).ToDictionary(x => x.Key, y => y.Value) };
             IndexStorageHandler.SerializeIndex(index);
         }
     }

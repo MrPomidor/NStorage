@@ -29,11 +29,11 @@ namespace NStorage.Tests.Integration.Components.StorageHandlers
         {
             var index = new Index()
             {
-                Records = new List<IndexRecord>()
+                Records = new Dictionary<string, IndexRecord>
                 {
-                    new IndexRecord("key1", new DataReference() { StreamStart = 1, Length = 10 }, new DataProperties { IsCompressed = true, IsEncrypted = false }),
-                    new IndexRecord("key2", new DataReference() { StreamStart = 11, Length = 1 }, new DataProperties { IsCompressed = false, IsEncrypted = true }),
-                    new IndexRecord("key3", new DataReference() { StreamStart = 12, Length = 20 }, new DataProperties { IsCompressed = false, IsEncrypted = false })
+                    { "key1", new IndexRecord(new DataReference() { StreamStart = 1, Length = 10 }, new DataProperties { IsCompressed = true, IsEncrypted = false }) },
+                    { "key2", new IndexRecord(new DataReference() { StreamStart = 11, Length = 1 }, new DataProperties { IsCompressed = false, IsEncrypted = true }) },
+                    { "key3", new IndexRecord(new DataReference() { StreamStart = 12, Length = 20 }, new DataProperties { IsCompressed = false, IsEncrypted = false }) },
                 }
             };
 
