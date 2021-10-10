@@ -11,10 +11,10 @@ namespace NStorage.StorageHandlers
     {
         public AtOnceFlushStorageHandler(
             FileStream storageFileStream,
-            FileStream indexFileStream,
+            IIndexStorageHandler indexStorageHandler,
             object storageFilesAccessLock,
             Index index
-            ) : base(storageFileStream, indexFileStream, index, storageFilesAccessLock)
+            ) : base(storageFileStream, indexStorageHandler, index, storageFilesAccessLock)
         { }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -30,7 +30,7 @@ namespace NStorage.StorageHandlers
                 long startPosition = StorageFileLength;
                 fileStream.Write(dataTuple.memory.Span);
 
-                var record = new IndexRecord(key, new DataReference { StreamStart = startPosition, Length = streamLength }, dataTuple.properties);
+                var record = new IndexRecord(new DataReference { StreamStart = startPosition, Length = streamLength }, dataTuple.properties);
                 RecordsCache.AddOrUpdate(key, (_) => record, (_, _) => record);
 
                 StorageFileLength += streamLength;

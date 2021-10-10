@@ -2,7 +2,7 @@
 using System.Linq;
 using Xunit;
 
-namespace NStorage.Tests.Integration
+namespace NStorage.Tests.Integration.FullScenarious
 {
     /// <summary>
     /// Several threads are reading then writing

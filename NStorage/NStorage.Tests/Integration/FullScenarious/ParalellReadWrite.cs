@@ -5,7 +5,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Xunit;
 
-namespace NStorage.Tests.Integration
+namespace NStorage.Tests.Integration.FullScenarious
 {
     /// <summary>
     /// Several threads are reading and writing from storage in a paralell

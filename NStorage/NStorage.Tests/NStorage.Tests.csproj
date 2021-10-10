@@ -7,9 +7,12 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Compile Remove="TestData\**" />
-    <EmbeddedResource Remove="TestData\**" />
-    <None Remove="TestData\**" />
+    <Compile Remove="LargeTestData\**" />
+    <EmbeddedResource Remove="LargeTestData\**" />
+    <None Remove="LargeTestData\**" />
+    <Compile Remove="SmallTestData\**" />
+    <EmbeddedResource Remove="SmallTestData\**" />
+    <None Remove="SmallTestData\**" />
   </ItemGroup>
 
   <ItemGroup>
@@ -17,6 +20,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <PackageReference Include="FluentAssertions" Version="6.1.0" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="16.9.4" />
     <PackageReference Include="xunit" Version="2.4.1" />
     <PackageReference Include="xunit.runner.visualstudio" Version="2.4.3">
@@ -31,13 +35,8 @@
 
   <ItemGroup>
     <ProjectReference Include="..\NStorage.App\NStorage.App.csproj" />
+    <ProjectReference Include="..\NStorage.Tests.Common\NStorage.Tests.Common.csproj" />
     <ProjectReference Include="..\NStorage\NStorage.csproj" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <None Update="TestFiles\db4dd0c4-3411-426b-9866-52826434e4c4.bin">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
   </ItemGroup>
 
 </Project>
