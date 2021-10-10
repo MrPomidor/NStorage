@@ -1,7 +1,7 @@
 ﻿using System.IO;
 using System.Runtime.CompilerServices;
 using System.Text;
-using Newtonsoft.Json;
+using Jil;
 using Index = NStorage.DataStructure.Index;
 
 namespace NStorage.StorageHandlers
@@ -19,15 +19,18 @@ namespace NStorage.StorageHandlers
         {
             // TODO find a way to read file content in one method
             _indexFileStream.Seek(0, SeekOrigin.Begin);
+            if (_indexFileStream.Length == 0)
+                return new Index();
+
             using var streamReader = new StreamReader(_indexFileStream, leaveOpen: true);
             var indexAsText = streamReader.ReadToEnd();
-            return JsonConvert.DeserializeObject<Index>(indexAsText) ?? new Index();
+            return JSON.Deserialize<Index>(indexAsText);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void SerializeIndex(Index index)
         {
-            var indexSerialized = JsonConvert.SerializeObject(index);
+            var indexSerialized = JSON.Serialize(index);
             var bytes = Encoding.UTF8.GetBytes(indexSerialized);
 
             // TODO find way to rewrite using single operation system method

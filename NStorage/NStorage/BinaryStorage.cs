@@ -20,7 +20,7 @@ namespace NStorage
         private const string IndexFile = "index.dat";
         private const string StorageFile = "storage.dat";
         private const int AesEncryption_IVLength = 16; // TODO revisit
-        private const int DefaultFlushIntervalMiliseconds = 100;
+        private const int DefaultFlushIntervalMiliseconds = 50;
         private const string LogPrefix = $"{nameof(BinaryStorage)}::";
 
         private readonly object _storageFilesAccessLock = new();

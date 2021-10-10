@@ -15,6 +15,7 @@ using System.Runtime.InteropServices;
 
 // The following GUID is for the ID of the typelib if this project is exposed to COM.
 
-[assembly: Guid("a5891e55-995d-43a6-8894-f23f398b10d0")]
+// TODO address the issue with intertop conflicts
+//[assembly: Guid("a5891e55-995d-43a6-8894-f23f398b10d0")]
 [assembly: InternalsVisibleTo("NStorage.Tests")]
 [assembly: InternalsVisibleTo("NStorage.Tests.Benchmarks")]

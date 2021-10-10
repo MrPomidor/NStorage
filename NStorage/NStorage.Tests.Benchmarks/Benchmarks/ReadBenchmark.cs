@@ -95,7 +95,7 @@ namespace NStorage.Tests.Benchmarks.Benchmarks
             switch (IndexFlushMode)
             {
                 case FlushMode.Deferred:
-                    storageConfiguration = storageConfiguration.SetFlushModeDeferred(flushIntervalMilliseconds:50);
+                    storageConfiguration = storageConfiguration.SetFlushModeDeferred(flushIntervalMilliseconds: 50);
                     break;
                 case FlushMode.Manual:
                     storageConfiguration = storageConfiguration.SetFlushModeManual();
