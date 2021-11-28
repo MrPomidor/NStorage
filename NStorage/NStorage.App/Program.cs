@@ -49,7 +49,7 @@ namespace NStorage.App
                     }
                     using (var stream = File.OpenRead(filePath))
                     {
-                        _storage.Add(filePath, stream, new StreamInfo() { IsCompressed = true });
+                        _storage.Add(filePath, stream, StreamInfo.Compressed);
                     }
                     continue;
                 }

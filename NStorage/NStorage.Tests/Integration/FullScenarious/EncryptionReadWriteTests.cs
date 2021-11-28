@@ -18,7 +18,7 @@ namespace NStorage.Tests.Integration.FullScenarious
         public void ReadData_InvalidEncryptionKey_ShouldThrowException()
         {
             // arrange
-            var streamInfo = new StreamInfo { IsEncrypted = true };
+            var streamInfo = StreamInfo.Encrypted;
             var storageConfiguration = GetConfiguration(_aesKey);
             var file = Directory.EnumerateFiles(_dataFolder, "*", SearchOption.AllDirectories).First();
             using (var storage = new BinaryStorage(storageConfiguration))

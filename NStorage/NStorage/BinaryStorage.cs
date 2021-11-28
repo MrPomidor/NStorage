@@ -11,7 +11,6 @@ using NStorage.DataStructure;
 using NStorage.Exceptions;
 using NStorage.StorageHandlers;
 using NStorage.Tracing;
-using Index = NStorage.DataStructure.Index;
 
 namespace NStorage
 {
@@ -19,7 +18,7 @@ namespace NStorage
     {
         private const string IndexFile = "index.dat";
         private const string StorageFile = "storage.dat";
-        private const int AesEncryption_IVLength = 16; // TODO revisit
+        private const int AesEncryption_IVLength = 16;
         private const string LogPrefix = $"{nameof(BinaryStorage)}::";
 
         private readonly object _storageFilesAccessLock = new();
@@ -46,6 +45,11 @@ namespace NStorage
 
             if (configuration.AesEncryptionKey != null)
             {
+                using (var aes = Aes.Create())
+                {
+                    if (!aes.ValidKeySize(bitLength: 8 * configuration.AesEncryptionKey.Length))
+                        throw new ArgumentException("Encryption key length is invalid for current encryption algorithm", nameof(configuration));
+                }
                 _encryptionEnalbed = true;
                 _aesEncryption_Key = configuration.AesEncryptionKey;
             }
@@ -63,6 +67,7 @@ namespace NStorage
 
             try
             {
+                // TODO conditional compilation for netstardard and netframework
                 //_indexFileStream = File.Open(_indexFilePath, FileMode.Open, FileAccess.ReadWrite, FileShare.None);
                 _indexFileStream = File.Open(indexFilePath, new FileStreamOptions
                 {
@@ -86,8 +91,6 @@ namespace NStorage
 
                 CheckIndexNotCorrupted(index);
                 CheckStorageNotCorrupted(index, _storageFileStream.Length);
-
-                // TODO divide this try/cath to two ???
 
                 var flushMode = configuration.FlushMode;
                 switch (flushMode)
@@ -127,7 +130,6 @@ namespace NStorage
             }
 
             // TODO check if storage file length is expected
-            // TODO lock storage and index files for current process
         }
 
         ~BinaryStorage()
@@ -135,7 +137,7 @@ namespace NStorage
             DisposeInternal(disposing: false, flushBuffers: true);
         }
 
-        private void CheckIndexNotCorrupted(Index index)
+        private void CheckIndexNotCorrupted(IndexDataStructure index)
         {
             long lastEndPosition = 0;
             var kvp = index.Records.Select(kvp => kvp).OrderBy(x => x.Value.DataReference.StreamStart).ToArray();
@@ -152,7 +154,7 @@ namespace NStorage
             }
         }
 
-        private void CheckStorageNotCorrupted(Index index, long storageLength)
+        private void CheckStorageNotCorrupted(IndexDataStructure index, long storageLength)
         {
             var expectedStorageLengthBytes = index.Records.Values.Sum(x => x.DataReference.Length);
             // TODO consider optimization and crop file length if it is greater then expected
@@ -273,7 +275,6 @@ namespace NStorage
             if (!_handler.TryGetRecord(key, out var record))
                 throw new KeyNotFoundException(key);
 
-            // TODO check bytes read count
             return PreProcessStream(record.recordBytes, record.recordProperties, key);
         }
 
@@ -402,11 +403,12 @@ namespace NStorage
                 _logger.LogWarning($"{LogPrefix}Calling {nameof(DisposeInternal)} outside of Dispose");
             }
 
-            if (flushBuffers) // TODO revisit this logic
+            if (flushBuffers)
             {
                 try
                 {
                     _handler?.Dispose();
+                    _indexHandler?.Dispose();
                 }
                 catch (Exception ex)
                 {

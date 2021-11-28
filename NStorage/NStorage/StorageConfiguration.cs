@@ -44,7 +44,9 @@ namespace NStorage
         {
             if (aesEncryptionKey == null)
                 throw new ArgumentNullException(nameof(aesEncryptionKey));
-            // TODO validate encryption key
+            if (aesEncryptionKey.Length == 0)
+                throw new ArgumentException("Encryption key cannot be empty", nameof(aesEncryptionKey));
+
             AesEncryptionKey = aesEncryptionKey;
             return this;
         }

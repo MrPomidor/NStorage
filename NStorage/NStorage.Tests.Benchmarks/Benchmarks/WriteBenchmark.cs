@@ -87,10 +87,14 @@ namespace NStorage.Tests.Benchmarks
 
         private StreamInfo GetStreamInfo()
         {
-            var streamInfo = StreamInfo.Empty;
-            streamInfo.IsCompressed = IsCompressed;
-            streamInfo.IsEncrypted = IsEncrypted;
-            return streamInfo;
+            if (!IsCompressed && !IsEncrypted)
+                return StreamInfo.Empty;
+            else if (IsCompressed && IsEncrypted)
+                return StreamInfo.CompressedAndEncrypted;
+            else if (IsCompressed)
+                return StreamInfo.Compressed;
+            else // IsEncrypted
+                return StreamInfo.Encrypted;
         }
 
         [Benchmark]

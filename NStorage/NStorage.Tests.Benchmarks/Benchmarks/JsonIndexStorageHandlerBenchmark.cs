@@ -2,7 +2,6 @@
 using BenchmarkDotNet.Attributes;
 using NStorage.DataStructure;
 using NStorage.StorageHandlers;
-using Index = NStorage.DataStructure.Index;
 
 namespace NStorage.Tests.Benchmarks.Benchmarks
 {
@@ -14,7 +13,7 @@ namespace NStorage.Tests.Benchmarks.Benchmarks
         private string _tempStorageFolderName;
         private FileStream _indexFileStream;
         private JsonIndexStorageHandler _indexStorageHandler;
-        private Index _index;
+        private IndexDataStructure _index;
 
         [GlobalSetup]
         public void GlobalSetup()
@@ -28,14 +27,14 @@ namespace NStorage.Tests.Benchmarks.Benchmarks
                 Mode = FileMode.Open,
                 Access = FileAccess.ReadWrite,
                 Share = FileShare.None,
-                Options = FileOptions.RandomAccess // TODO make an option
+                Options = FileOptions.RandomAccess
             });
             _indexStorageHandler = new JsonIndexStorageHandler(_indexFileStream);
-            _index = new Index();
+            _index = new IndexDataStructure();
             for (int i = 0; i < 100; i++)
             {
                 var key = $"key{i}";
-                // TODO make data correct ?
+                // data correctness is not mandatory for these benchmarks
                 _index.Records[key] = new IndexRecord(new DataReference() { StreamStart = 1000, Length = 100000 }, new DataProperties { IsCompressed = false, IsEncrypted = false });
             }
         }
@@ -73,6 +72,7 @@ namespace NStorage.Tests.Benchmarks.Benchmarks
         {
             _index = null;
             _indexFileStream?.Dispose();
+            _indexStorageHandler?.Dispose();
             _indexStorageHandler = null;
             CleanupTest(_tempStorageFolderName);
         }
