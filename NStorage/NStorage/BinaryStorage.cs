@@ -20,7 +20,6 @@ namespace NStorage
         private const string IndexFile = "index.dat";
         private const string StorageFile = "storage.dat";
         private const int AesEncryption_IVLength = 16; // TODO revisit
-        private const int DefaultFlushIntervalMiliseconds = 50;
         private const string LogPrefix = $"{nameof(BinaryStorage)}::";
 
         private readonly object _storageFilesAccessLock = new();
@@ -106,7 +105,7 @@ namespace NStorage
                             indexStorageHandler: _indexHandler,
                             storageFilesAccessLock: _storageFilesAccessLock,
                             index: index,
-                            flushIntervalMilliseconds: configuration.FlushIntervalMilliseconds ?? DefaultFlushIntervalMiliseconds);
+                            flushIntervalMilliseconds: configuration.FlushIntervalMilliseconds ?? StorageConfiguration.DefaultFlushIntervalMiliseconds);
                         break;
                     case FlushMode.Manual:
                         _handler = new ManualFlushStorageHandler(
@@ -331,6 +330,8 @@ namespace NStorage
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private MemoryStream GetNewStreamFromDecrypt(MemoryStream inputStream)
         {
+            // TODO add throwing exception, when invalid key was provided
+
             var IVBytes = new byte[AesEncryption_IVLength]; // TODO array pool
             inputStream.Read(IVBytes, 0, AesEncryption_IVLength);
             using (var aes = Aes.Create())

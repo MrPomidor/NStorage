@@ -4,6 +4,8 @@ namespace NStorage
 {
     public class StorageConfiguration
     {
+        public const int DefaultFlushIntervalMiliseconds = 50;
+
         /// <summary>
         /// Folder where implementation should store Index and Storage File
         /// </summary>
