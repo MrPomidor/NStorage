@@ -274,12 +274,11 @@ namespace NStorage
                 throw new KeyNotFoundException(key);
 
             // TODO check bytes read count
-            return GetProcessedStream(record.recordBytes, record.recordProperties);
+            return PreProcessStream(record.recordBytes, record.recordProperties, key);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        // TODO better naming
-        private MemoryStream GetProcessedStream(byte[] bytes, DataProperties dataProperties)
+        private MemoryStream PreProcessStream(byte[] bytes, DataProperties dataProperties, string key)
         {
             EnsureDataPropertiesCorrect(dataProperties);
 
@@ -291,7 +290,7 @@ namespace NStorage
                 // not compressed, encrypted
                 using (var inputStream = new MemoryStream(bytes)) // TODO memstream pooling 
                 {
-                    var resultStream = GetNewStreamFromDecrypt(inputStream);
+                    var resultStream = GetNewStreamFromDecrypt(inputStream, key);
                     return resultStream;
                 }
             }
@@ -310,7 +309,7 @@ namespace NStorage
             MemoryStream? decrypted = null;
             using (var inputStream = new MemoryStream(bytes)) // TODO memstream pooling
             {
-                decrypted = GetNewStreamFromDecrypt(inputStream);
+                decrypted = GetNewStreamFromDecrypt(inputStream, key);
             }
             using (decrypted)
             {
@@ -328,22 +327,28 @@ namespace NStorage
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private MemoryStream GetNewStreamFromDecrypt(MemoryStream inputStream)
+        private MemoryStream GetNewStreamFromDecrypt(MemoryStream inputStream, string key)
         {
-            // TODO add throwing exception, when invalid key was provided
-
-            var IVBytes = new byte[AesEncryption_IVLength]; // TODO array pool
-            inputStream.Read(IVBytes, 0, AesEncryption_IVLength);
-            using (var aes = Aes.Create())
-            using (var decryptor = aes.CreateDecryptor(_aesEncryption_Key!, IVBytes))
+            try
             {
-                using (var cryptoStream = new CryptoStream(inputStream, decryptor, CryptoStreamMode.Read))
+                var IVBytes = new byte[AesEncryption_IVLength]; // TODO array pool
+                inputStream.Read(IVBytes, 0, AesEncryption_IVLength);
+                using (var aes = Aes.Create())
+                using (var decryptor = aes.CreateDecryptor(_aesEncryption_Key!, IVBytes))
                 {
-                    var resultMemoryStream = new MemoryStream();
-                    cryptoStream.CopyTo(resultMemoryStream);
-                    resultMemoryStream.Seek(0, SeekOrigin.Begin);
-                    return resultMemoryStream;
+                    using (var cryptoStream = new CryptoStream(inputStream, decryptor, CryptoStreamMode.Read))
+                    {
+                        var resultMemoryStream = new MemoryStream();
+                        cryptoStream.CopyTo(resultMemoryStream);
+                        resultMemoryStream.Seek(0, SeekOrigin.Begin);
+                        return resultMemoryStream;
+                    }
                 }
+            }
+            catch(CryptographicException cryptoException)
+            {
+                _logger.LogError(cryptoException, $"{LogPrefix}Error reading encrypted data for key \"{key}\"");
+                throw new InvalidEncryptionKeyException("Invalid encryption key. Please check storage configuration");
             }
         }
 
