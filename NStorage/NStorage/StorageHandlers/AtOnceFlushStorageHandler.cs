@@ -18,7 +18,7 @@ namespace NStorage.StorageHandlers
         { }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public override void Add(string key, (Memory<byte> memory, DataProperties properties) dataTuple) // TODO why we use memory here ? (remove if incompatible with NET Framework)
+        public override void Add(string key, (byte[] memory, DataProperties properties) dataTuple)
         {
             EnsureNotDisposed();
 
@@ -28,7 +28,7 @@ namespace NStorage.StorageHandlers
             {
                 var fileStream = StorageFileStream;
                 long startPosition = StorageFileLength;
-                fileStream.Write(dataTuple.memory.Span);
+                fileStream.Write(dataTuple.memory);
 
                 var record = new IndexRecord(new DataReference { StreamStart = startPosition, Length = streamLength }, dataTuple.properties);
                 RecordsCache.AddOrUpdate(key, (_) => record, (_, _) => record);

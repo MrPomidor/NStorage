@@ -10,8 +10,8 @@ namespace NStorage.StorageHandlers
 {
     internal abstract class DeferredFlushStorageHandlerBase : StorageHandlerBase
     {
-        protected readonly ConcurrentDictionary<string, (Memory<byte> memory, DataProperties properties)?> _tempRecordsCache;
-        protected readonly ConcurrentQueue<(string key, (Memory<byte> memory, DataProperties properties))> _recordsQueue;
+        protected readonly ConcurrentDictionary<string, (byte[] memory, DataProperties properties)?> _tempRecordsCache;
+        protected readonly ConcurrentQueue<(string key, (byte[] memory, DataProperties properties))> _recordsQueue;
 
         protected DeferredFlushStorageHandlerBase(
             FileStream storageFileStream,
@@ -20,8 +20,8 @@ namespace NStorage.StorageHandlers
             object storageFilesAccessLock)
             : base(storageFileStream, indexStorageHandler, index, storageFilesAccessLock)
         {
-            _tempRecordsCache = new ConcurrentDictionary<string, (Memory<byte> memory, DataProperties properties)?>();
-            _recordsQueue = new ConcurrentQueue<(string key, (Memory<byte> memory, DataProperties properties))>();
+            _tempRecordsCache = new ConcurrentDictionary<string, (byte[] memory, DataProperties properties)?>();
+            _recordsQueue = new ConcurrentQueue<(string key, (byte[] memory, DataProperties properties))>();
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -34,7 +34,7 @@ namespace NStorage.StorageHandlers
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public override void Add(string key, (Memory<byte> memory, DataProperties properties) dataTuple)
+        public override void Add(string key, (byte[] memory, DataProperties properties) dataTuple)
         {
             _tempRecordsCache.AddOrUpdate(key, (_) => dataTuple, (_, _) => dataTuple);
             _recordsQueue.Enqueue((key, dataTuple));
@@ -53,14 +53,14 @@ namespace NStorage.StorageHandlers
         {
             if (_tempRecordsCache.TryGetValue(key, out var record) && record != null)
             {
-                outRecord = (record.Value.memory.ToArray(), record.Value.properties);
+                outRecord = (record.Value.memory, record.Value.properties);
                 return true;
             }
 
             return base.TryGetRecord(key, out outRecord);
         }
 
-        protected void FlushInternal(List<(string key, (Memory<byte> memory, DataProperties properties))> processingBuffer)
+        protected void FlushInternal(List<(string key, (byte[] memory, DataProperties properties))> processingBuffer)
         {
             var newStorageLength = StorageFileLength;
 
@@ -77,7 +77,7 @@ namespace NStorage.StorageHandlers
 
                 lock (StorageFilesAccessLock)
                 {
-                    fileStream.Write(memory.Span);
+                    fileStream.Write(memory);
                     newStorageLength += memory.Length;
                     StorageFileLength = newStorageLength;
                 }

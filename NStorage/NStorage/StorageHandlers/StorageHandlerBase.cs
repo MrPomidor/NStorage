@@ -59,7 +59,7 @@ namespace NStorage.StorageHandlers
             return true;
         }
 
-        public abstract void Add(string key, (Memory<byte> memory, DataProperties properties) dataTuple);
+        public abstract void Add(string key, (byte[] memory, DataProperties properties) dataTuple);
         public abstract bool Contains(string key);
         public abstract void EnsureAndBookKey(string key);
         public abstract void Flush();
