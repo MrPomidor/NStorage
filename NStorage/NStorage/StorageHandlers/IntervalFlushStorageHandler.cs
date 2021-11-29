@@ -6,7 +6,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using NStorage.DataStructure;
 using NStorage.Tracing;
-using Index = NStorage.DataStructure.Index;
 
 namespace NStorage.StorageHandlers
 {
@@ -23,7 +22,7 @@ namespace NStorage.StorageHandlers
              FileStream storageFileStream,
              IIndexStorageHandler indexStorageHandler,
              object storageFilesAccessLock,
-             Index index,
+             IndexDataStructure index,
              int flushIntervalMilliseconds)
             : base(storageFileStream, indexStorageHandler, index, storageFilesAccessLock)
         {

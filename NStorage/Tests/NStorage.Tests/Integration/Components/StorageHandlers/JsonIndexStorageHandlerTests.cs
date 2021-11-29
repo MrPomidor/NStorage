@@ -5,16 +5,15 @@ using FluentAssertions;
 using NStorage.DataStructure;
 using NStorage.StorageHandlers;
 using Xunit;
-using Index = NStorage.DataStructure.Index;
 
 namespace NStorage.Tests.Integration.Components.StorageHandlers
 {
-    // TODO summary
+    /// <summary>
+    /// Tests Json based IIndexStorageHandler implementation
+    /// </summary>
     [Collection("Sequential")]
     public class JsonIndexStorageHandlerTests : IDisposable
     {
-        // TODO integration test base class
-        // TODO test that serialization and deserialization completes successfully
         protected readonly string _tempTestFolder;
         private readonly FileStream _indexFileStream;
         public JsonIndexStorageHandlerTests()
@@ -24,10 +23,9 @@ namespace NStorage.Tests.Integration.Components.StorageHandlers
         }
 
         [Fact]
-        // TODO move code to base class
         public void ShouldSerializeAndDeserializeCorrectly()
         {
-            var index = new Index()
+            var index = new IndexDataStructure()
             {
                 Records = new Dictionary<string, IndexRecord>
                 {
@@ -37,7 +35,7 @@ namespace NStorage.Tests.Integration.Components.StorageHandlers
                 }
             };
 
-            var storageHandler = new JsonIndexStorageHandler(_indexFileStream);
+            using var storageHandler = new JsonIndexStorageHandler(_indexFileStream);
 
             storageHandler.SerializeIndex(index);
 

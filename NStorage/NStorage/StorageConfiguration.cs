@@ -4,6 +4,8 @@ namespace NStorage
 {
     public class StorageConfiguration
     {
+        public const int DefaultFlushIntervalMiliseconds = 50;
+
         /// <summary>
         /// Folder where implementation should store Index and Storage File
         /// </summary>
@@ -42,7 +44,9 @@ namespace NStorage
         {
             if (aesEncryptionKey == null)
                 throw new ArgumentNullException(nameof(aesEncryptionKey));
-            // TODO validate encryption key
+            if (aesEncryptionKey.Length == 0)
+                throw new ArgumentException("Encryption key cannot be empty", nameof(aesEncryptionKey));
+
             AesEncryptionKey = aesEncryptionKey;
             return this;
         }

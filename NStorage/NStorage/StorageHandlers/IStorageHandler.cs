@@ -3,7 +3,9 @@ using NStorage.DataStructure;
 
 namespace NStorage.StorageHandlers
 {
-    // TODO documentation
+    /// <summary>
+    /// Handles most of the logic interaction with storage file
+    /// </summary>
     internal interface IStorageHandler : IDisposable
     {
         void Init();

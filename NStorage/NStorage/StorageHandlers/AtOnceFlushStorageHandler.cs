@@ -2,18 +2,19 @@
 using System.IO;
 using System.Runtime.CompilerServices;
 using NStorage.DataStructure;
-using Index = NStorage.DataStructure.Index;
 
 namespace NStorage.StorageHandlers
 {
-    // TODO description
+    /// <summary>
+    /// Storage handler for atomic write operations. No deffer
+    /// </summary>
     internal class AtOnceFlushStorageHandler : StorageHandlerBase
     {
         public AtOnceFlushStorageHandler(
             FileStream storageFileStream,
             IIndexStorageHandler indexStorageHandler,
             object storageFilesAccessLock,
-            Index index
+            IndexDataStructure index
             ) : base(storageFileStream, indexStorageHandler, index, storageFilesAccessLock)
         { }
 

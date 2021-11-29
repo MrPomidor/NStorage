@@ -36,9 +36,7 @@ namespace NStorage.Tests.Benchmarks.Benchmarks
             {
                 _aesKey = aes.Key;
             }
-            var streamInfo = StreamInfo.Empty;
-            streamInfo.IsCompressed = IsCompressed;
-            streamInfo.IsEncrypted = IsEncrypted;
+            var streamInfo = GetStreamInfo();
 
             using (var storage = new BinaryStorage(new StorageConfiguration(_tempStorageFolderName).EnableEncryption(_aesKey)))
             {
@@ -86,6 +84,18 @@ namespace NStorage.Tests.Benchmarks.Benchmarks
                     using var resultStream = storage.Get(fileName);
                 }
             }
+        }
+
+        private StreamInfo GetStreamInfo()
+        {
+            if (!IsCompressed && !IsEncrypted)
+                return StreamInfo.Empty;
+            else if (IsCompressed && IsEncrypted)
+                return StreamInfo.CompressedAndEncrypted;
+            else if (IsCompressed)
+                return StreamInfo.Compressed;
+            else // IsEncrypted
+                return StreamInfo.Encrypted;
         }
 
         private StorageConfiguration GetStorageConfiguration()

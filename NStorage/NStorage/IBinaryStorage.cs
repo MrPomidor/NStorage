@@ -10,13 +10,13 @@ namespace NStorage
         /// </summary>
         /// <param name="key">Unique identifier of the stream, cannot be null or empty</param>
         /// <param name="data">Non empty stream with data, cannot be null or empty </param>
-        /// <param name="parameters">Optional parameters. Instead of null use StreamInfo.Empty</param>
+        /// <param name="parameters">Optional parameters</param>
         /// <exception cref="System.ArgumentException">
         /// An element with the same key already exists or
         /// provided hash or length does not match the data.
         /// </exception>
         /// <exception cref="System.ArgumentNullException">
-        ///  key is null, data is null, parameters is null
+        ///  key is null, data is null
         /// </exception>
         /// <exception cref="System.IO.IOException">
         ///  I/O exception occurred during persisting data

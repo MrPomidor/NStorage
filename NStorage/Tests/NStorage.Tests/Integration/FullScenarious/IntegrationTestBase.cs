@@ -44,15 +44,15 @@ namespace NStorage.Tests.Integration.FullScenarious
             StreamInfo.Empty, //0
             StreamInfo.Empty, //1
             StreamInfo.Empty, //2
-            new StreamInfo() { IsCompressed = true }, //3
-            new StreamInfo() { IsCompressed = true }, //4
-            new StreamInfo() { IsCompressed = true }, //5
-            new StreamInfo() { IsEncrypted = true }, //6
-            new StreamInfo() { IsEncrypted = true }, //7
-            new StreamInfo() { IsEncrypted = true }, //8
-            new StreamInfo() { IsCompressed = true, IsEncrypted = true }, //9
-            new StreamInfo() { IsCompressed = true, IsEncrypted = true }, //10
-            new StreamInfo() { IsCompressed = true, IsEncrypted = true }, //11
+            StreamInfo.Compressed, //3
+            StreamInfo.Compressed, //4
+            StreamInfo.Compressed, //5
+            StreamInfo.Encrypted, //6
+            StreamInfo.Encrypted, //7
+            StreamInfo.Encrypted, //8
+            StreamInfo.CompressedAndEncrypted, //9
+            StreamInfo.CompressedAndEncrypted, //10
+            StreamInfo.CompressedAndEncrypted, //11
         };
         #endregion
 

@@ -4,7 +4,6 @@ using System.IO;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using NStorage.DataStructure;
-using Index = NStorage.DataStructure.Index;
 
 namespace NStorage.StorageHandlers
 {
@@ -15,7 +14,7 @@ namespace NStorage.StorageHandlers
         public ManualFlushStorageHandler(
             FileStream storageFileStream,
             IIndexStorageHandler indexStorageHandler,
-            Index index,
+            IndexDataStructure index,
             object storageFilesAccessLock)
             : base(storageFileStream, indexStorageHandler, index, storageFilesAccessLock)
         {

@@ -4,7 +4,6 @@ using System.IO;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using NStorage.DataStructure;
-using Index = NStorage.DataStructure.Index;
 
 namespace NStorage.StorageHandlers
 {
@@ -20,7 +19,7 @@ namespace NStorage.StorageHandlers
         protected StorageHandlerBase(
             FileStream storageFileStream,
             IIndexStorageHandler indexStorageHandler,
-            Index index,
+            IndexDataStructure index,
             object storageFilesAccessLock)
         {
             StorageFilesAccessLock = storageFilesAccessLock;
@@ -78,7 +77,7 @@ namespace NStorage.StorageHandlers
 
         protected void FlushIndexFile()
         {
-            var index = new Index { Records = RecordsCache.ToArray().Where(x => x.Value != null).ToDictionary(x => x.Key, y => y.Value) };
+            var index = new IndexDataStructure { Records = RecordsCache.ToArray().Where(x => x.Value != null).ToDictionary(x => x.Key, y => y.Value) };
             IndexStorageHandler.SerializeIndex(index);
         }
     }

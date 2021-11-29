@@ -4,7 +4,6 @@ using System.Collections.Generic;
 using System.IO;
 using System.Runtime.CompilerServices;
 using NStorage.DataStructure;
-using Index = NStorage.DataStructure.Index; // TODO rename index
 
 namespace NStorage.StorageHandlers
 {
@@ -16,7 +15,7 @@ namespace NStorage.StorageHandlers
         protected DeferredFlushStorageHandlerBase(
             FileStream storageFileStream,
             IIndexStorageHandler indexStorageHandler,
-            Index index,
+            IndexDataStructure index,
             object storageFilesAccessLock)
             : base(storageFileStream, indexStorageHandler, index, storageFilesAccessLock)
         {
@@ -29,7 +28,7 @@ namespace NStorage.StorageHandlers
         {
             if (RecordsCache.TryGetValue(key, out _) || !_tempRecordsCache.TryAdd(key, null))
             {
-                throw new ArgumentException($"Key {key} already exists in storage"); // TODO better exception ?
+                throw new ArgumentException($"Key {key} already exists in storage");
             }
         }
 

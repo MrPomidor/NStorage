@@ -34,9 +34,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\NStorage.App\NStorage.App.csproj" />
+    <ProjectReference Include="..\..\NStorage\NStorage.csproj" />
     <ProjectReference Include="..\NStorage.Tests.Common\NStorage.Tests.Common.csproj" />
-    <ProjectReference Include="..\NStorage\NStorage.csproj" />
   </ItemGroup>
 
 </Project>

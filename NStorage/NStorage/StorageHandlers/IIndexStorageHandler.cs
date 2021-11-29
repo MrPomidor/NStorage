@@ -1,11 +1,12 @@
-﻿using Index = NStorage.DataStructure.Index;
+﻿using NStorage.DataStructure;
+using System;
 
 namespace NStorage.StorageHandlers
 {
-    internal interface IIndexStorageHandler
+    internal interface IIndexStorageHandler : IDisposable
     {
-        Index DeserializeIndex();
+        IndexDataStructure DeserializeIndex();
 
-        void SerializeIndex(Index index);
+        void SerializeIndex(IndexDataStructure index);
     }
 }
