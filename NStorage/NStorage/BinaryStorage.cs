@@ -16,8 +16,9 @@ namespace NStorage
 {
     public class BinaryStorage : IBinaryStorage
     {
-        private const string IndexFile = "index.dat";
-        private const string StorageFile = "storage.dat";
+        public const string IndexFile = "index.dat";
+        public const string StorageFile = "storage.dat";
+
         private const int AesEncryption_IVLength = 16;
         private const string LogPrefix = $"{nameof(BinaryStorage)}::";
 

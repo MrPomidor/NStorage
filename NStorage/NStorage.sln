@@ -11,7 +11,13 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "NStorage.Tests", "NStorage.
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "NStorage.Tests.Benchmarks", "NStorage.Tests.Benchmarks\NStorage.Tests.Benchmarks.csproj", "{8F81708F-E932-4A31-8888-5BE152D1B161}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NStorage.Tests.Common", "NStorage.Tests.Common\NStorage.Tests.Common.csproj", "{AF746023-00ED-45EF-9E82-588F415EF644}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "NStorage.Tests.Common", "NStorage.Tests.Common\NStorage.Tests.Common.csproj", "{AF746023-00ED-45EF-9E82-588F415EF644}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "SampleApplications", "SampleApplications", "{3D2AD4C5-98AA-4584-BB9B-44CD0B100555}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Tests", "Tests", "{BED6DFBE-5ED8-4FE5-93F4-8F685F159811}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NStorage.Samples.FastFolderBackup", "SampleApplications\NStorage.Samples.FastFolderBackup\NStorage.Samples.FastFolderBackup.csproj", "{AC95550E-C894-4E3E-826D-FC51B027E095}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -39,9 +45,19 @@ Global
 		{AF746023-00ED-45EF-9E82-588F415EF644}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{AF746023-00ED-45EF-9E82-588F415EF644}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{AF746023-00ED-45EF-9E82-588F415EF644}.Release|Any CPU.Build.0 = Release|Any CPU
+		{AC95550E-C894-4E3E-826D-FC51B027E095}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{AC95550E-C894-4E3E-826D-FC51B027E095}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{AC95550E-C894-4E3E-826D-FC51B027E095}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{AC95550E-C894-4E3E-826D-FC51B027E095}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{E6FDAF05-77FC-4FFB-9EB3-E634413002BF} = {BED6DFBE-5ED8-4FE5-93F4-8F685F159811}
+		{8F81708F-E932-4A31-8888-5BE152D1B161} = {BED6DFBE-5ED8-4FE5-93F4-8F685F159811}
+		{AF746023-00ED-45EF-9E82-588F415EF644} = {BED6DFBE-5ED8-4FE5-93F4-8F685F159811}
+		{AC95550E-C894-4E3E-826D-FC51B027E095} = {3D2AD4C5-98AA-4584-BB9B-44CD0B100555}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {852C775A-4C27-4FF7-B7BA-891C3D6EE4F5}
