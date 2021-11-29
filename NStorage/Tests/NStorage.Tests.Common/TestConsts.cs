@@ -2,7 +2,7 @@
 {
     public static class TestConsts
     {
-        public const string BasePath = @"E:\PROJECTS\NStorage\NStorage\NStorage.Tests\";
+        public const string BasePath = @"E:\PROJECTS\NStorage\NStorage\Tests\NStorage.Tests\";
         public const string LargeSizeTestFilesFolderPath = BasePath + "LargeTestData";
         public const string SmallSizeTestFilesFolderPath = BasePath + "SmallTestData";
 

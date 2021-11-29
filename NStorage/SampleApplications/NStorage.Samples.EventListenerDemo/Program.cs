@@ -1,7 +1,7 @@
 ﻿using System;
 using System.IO;
 
-namespace NStorage.App
+namespace NStorage.Samples.EventListenerDemo
 {
     // TODO write some use case(s) with console
     public class Program

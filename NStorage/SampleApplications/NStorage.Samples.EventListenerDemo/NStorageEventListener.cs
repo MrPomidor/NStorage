@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics.Tracing;
 using System.Linq;
 
-namespace NStorage.App
+namespace NStorage.Samples.EventListenerDemo
 {
     internal class NStorageEventListener : EventListener
     {
