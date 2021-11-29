@@ -3,7 +3,9 @@ using System.IO;
 
 namespace NStorage.Samples.EventListenerDemo
 {
-    // TODO write some use case(s) with console
+    /// <summary>
+    /// Console application, created for demonstration of in-process consuming of EventCounters data
+    /// </summary>
     public class Program
     {
         private static readonly ConsoleColor DefaultForegroundColor = Console.ForegroundColor;
@@ -21,6 +23,7 @@ namespace NStorage.Samples.EventListenerDemo
             if (args.Length > 1)
             {
                 WriteError("Expecting path to storage directory. Additional arguments not supported");
+                return;
             }
 
             var storagePath = args[0];
@@ -61,10 +64,7 @@ namespace NStorage.Samples.EventListenerDemo
                     _storage?.Dispose();
                     _storage = null;
                 }
-                catch
-                {
-                    // TODO error message
-                }
+                catch { }
 
                 WriteInfo("==============================================");
                 WriteInfo("Counters statistict:");
@@ -80,10 +80,7 @@ namespace NStorage.Samples.EventListenerDemo
                     _eventListener?.Dispose();
                     _eventListener = null;
                 }
-                catch
-                {
-                    // TODO error message
-                }
+                catch { }
             }
 
             WriteInfo("Press any key ...");
@@ -101,7 +98,5 @@ namespace NStorage.Samples.EventListenerDemo
             Console.WriteLine(message);
             Console.ForegroundColor = DefaultForegroundColor;
         }
-
     }
-
 }

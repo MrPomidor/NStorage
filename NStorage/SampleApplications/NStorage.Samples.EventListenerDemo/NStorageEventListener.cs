@@ -1,4 +1,5 @@
-﻿using System.Collections.Concurrent;
+﻿using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics.Tracing;
 using System.Linq;
@@ -7,9 +8,9 @@ namespace NStorage.Samples.EventListenerDemo
 {
     internal class NStorageEventListener : EventListener
     {
-        private readonly ConcurrentDictionary<string, string> _counters = new ConcurrentDictionary<string, string>();
+        private readonly ConcurrentDictionary<string, decimal> _counters = new ConcurrentDictionary<string, decimal>();
 
-        public IReadOnlyDictionary<string, string> GetCountersSnapshot() => _counters.ToList().ToDictionary(kv => kv.Key, kv => kv.Value);
+        public IReadOnlyDictionary<string, decimal> GetCountersSnapshot() => _counters.ToList().ToDictionary(kv => kv.Key, kv => kv.Value);
 
         protected override void OnEventSourceCreated(EventSource source)
         {
@@ -35,17 +36,15 @@ namespace NStorage.Samples.EventListenerDemo
             {
                 if (eventData.Payload[i] is IDictionary<string, object> eventPayload)
                 {
-                    var (counterName, counterValue) = GetRelevantMetric(eventPayload);
-                    _counters[counterName] = counterValue;
+                    UpdateMetricMax(eventPayload);
                 }
             }
         }
 
-        private static (string counterName, string counterValue) GetRelevantMetric(
-            IDictionary<string, object> eventPayload)
+        private void UpdateMetricMax(IDictionary<string, object> eventPayload)
         {
             var counterName = "";
-            var counterValue = "";
+            decimal counterValue = 0;
 
             if (eventPayload.TryGetValue("DisplayName", out object displayValue))
             {
@@ -54,10 +53,9 @@ namespace NStorage.Samples.EventListenerDemo
             if (eventPayload.TryGetValue("Mean", out object value) ||
                 eventPayload.TryGetValue("Increment", out value))
             {
-                counterValue = value.ToString();
+                counterValue = decimal.Parse(value.ToString());
+                _counters.AddOrUpdate(counterName, (_) => counterValue, (_, oldValue) => Math.Max(oldValue, counterValue));
             }
-
-            return (counterName, counterValue);
         }
     }
 }

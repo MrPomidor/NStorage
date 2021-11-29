@@ -74,9 +74,9 @@ var stream1 = storage.Get("compressed");
 ...  = storage.Get("encrypted");
 ```
 ## Contributors guide
-To start contributing you can just download project and restore NuGet packages. To be able to run benchmarks and integration tests, you should initialize test data with simple script, located at `NStorage.Tests\init.ps1`. This script will generate test data sets. Then go to `NStorage.Tests.Common\TestsConsts` and fill the `BasePath` variable to point to `NStorage.Tests` folder in your file system.
+To start contributing you can just download project and restore NuGet packages. To be able to run benchmarks and integration tests, you should initialize test data with simple script, located at `Tests\NStorage.Tests\init.ps1`. This script will generate test data sets. Then go to `Tests\NStorage.Tests.Common\TestsConsts` and fill the `BasePath` variable to point to `Tests\NStorage.Tests` folder in your file system.
 
-Benchmarks are run via `NStorage.Tests.Benchmarks`
+Benchmarks are run via `Tests\NStorage.Tests.Benchmarks`
 
 
 ## Project purpose
