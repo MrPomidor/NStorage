@@ -15,7 +15,7 @@ namespace NStorage
 
         public int? FlushIntervalMilliseconds { get; private set; }
 
-        public byte[]? AesEncryptionKey { get; private set; }
+        public byte[] AesEncryptionKey { get; private set; }
 
         public StorageConfiguration(string workingFolder)
         {

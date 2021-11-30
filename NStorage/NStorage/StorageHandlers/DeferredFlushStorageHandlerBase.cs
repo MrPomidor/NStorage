@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Runtime.CompilerServices;
 using NStorage.DataStructure;
+using NStorage.Utils;
 
 namespace NStorage.StorageHandlers
 {
@@ -35,7 +36,7 @@ namespace NStorage.StorageHandlers
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public override void Add(string key, (byte[] memory, DataProperties properties) dataTuple)
         {
-            _tempRecordsCache.AddOrUpdate(key, (_) => dataTuple, (_, _) => dataTuple);
+            _tempRecordsCache.AddOrUpdate(key, (k) => dataTuple, (k, prev) => dataTuple);
             _recordsQueue.Enqueue((key, dataTuple));
         }
 
@@ -61,28 +62,28 @@ namespace NStorage.StorageHandlers
 
         protected void FlushInternal(List<(string key, (byte[] memory, DataProperties properties))> processingBuffer)
         {
-            var newStorageLength = StorageFileLength;
-
             var keys = new List<string>();
             var fileStream = StorageFileStream;
 
             foreach (var item in processingBuffer)
             {
-                var streamStart = newStorageLength;
-
                 var key = item.key;
                 keys.Add(key);
                 (var memory, var dataProperties) = item.Item2;
 
+                long streamStart;
                 lock (StorageFilesAccessLock)
                 {
+                    var newStorageLength = StorageFileLength;
+                    streamStart = newStorageLength;
+
                     fileStream.Write(memory);
                     newStorageLength += memory.Length;
                     StorageFileLength = newStorageLength;
                 }
 
                 var record = new IndexRecord(new DataReference { StreamStart = streamStart, Length = memory.Length }, dataProperties);
-                RecordsCache.AddOrUpdate(key, (_) => record, (_, _) => record);
+                RecordsCache.AddOrUpdate(key, (k) => record, (k, prev) => record);
             }
 
             lock (StorageFilesAccessLock)
@@ -92,14 +93,16 @@ namespace NStorage.StorageHandlers
 
             foreach (var key in keys)
             {
-                _tempRecordsCache.Remove(key, out _);
+                _tempRecordsCache.TryRemove(key, out _);
             }
         }
 
         protected void DisposeInternal()
         {
             _tempRecordsCache.Clear();
+#if NETSTANDARD2_1_OR_GREATER || NET5_0_OR_GREATER
             _recordsQueue.Clear();
+#endif
         }
     }
 }

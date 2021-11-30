@@ -4,7 +4,7 @@ namespace NStorage.Exceptions
 {
     public class StorageCorruptedException : Exception
     {
-        public StorageCorruptedException(string? message) : base(message)
+        public StorageCorruptedException(string message) : base(message)
         {
         }
     }

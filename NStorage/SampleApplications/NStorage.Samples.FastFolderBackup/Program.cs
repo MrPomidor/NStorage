@@ -1,6 +1,6 @@
-﻿using Mono.Options;
+﻿using System.Collections.Concurrent;
+using Mono.Options;
 using NStorage;
-using System.Collections.Concurrent;
 using static ApplicationHelper;
 using static ConsoleHelper;
 

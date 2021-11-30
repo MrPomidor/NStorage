@@ -22,6 +22,7 @@ namespace NStorage.Tests.Benchmarks.Benchmarks
             var indexFilePath = Path.Combine(_tempStorageFolderName, "index.bat");
             File.WriteAllText(indexFilePath, string.Empty);
             // file open should copy options from Binary storage
+#if NET6_0_OR_GREATER
             _indexFileStream = File.Open(indexFilePath, new FileStreamOptions
             {
                 Mode = FileMode.Open,
@@ -29,6 +30,9 @@ namespace NStorage.Tests.Benchmarks.Benchmarks
                 Share = FileShare.None,
                 Options = FileOptions.RandomAccess
             });
+#else
+            _indexFileStream = File.Open(indexFilePath, FileMode.Open, FileAccess.ReadWrite, FileShare.None);
+#endif
             _indexStorageHandler = new JsonIndexStorageHandler(_indexFileStream);
             _index = new IndexDataStructure();
             for (int i = 0; i < 100; i++)

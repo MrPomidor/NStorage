@@ -1,9 +1,9 @@
-﻿using System;
-using System.Collections.Concurrent;
+﻿using System.Collections.Concurrent;
 using System.IO;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using NStorage.DataStructure;
+using NStorage.Utils;
 
 namespace NStorage.StorageHandlers
 {
@@ -45,7 +45,7 @@ namespace NStorage.StorageHandlers
                 return false;
 
             var fileStream = StorageFileStream;
-            var bytes = new byte[recordData!.DataReference.Length];
+            var bytes = new byte[recordData.DataReference.Length];
             lock (StorageFilesAccessLock)
             {
                 var fileStreamLength = StorageFileLength;
@@ -54,7 +54,7 @@ namespace NStorage.StorageHandlers
                 fileStream.Seek(fileStreamLength, SeekOrigin.Begin);
             }
 
-            record = (bytes, recordData!.Properties);
+            record = (bytes, recordData.Properties);
             return true;
         }
 

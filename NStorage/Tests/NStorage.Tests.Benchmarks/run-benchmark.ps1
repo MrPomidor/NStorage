@@ -7,4 +7,5 @@
 # Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
 
 dotnet run -c Release `
-    --filter *
+    --framework net6.0 `
+    --filter * 
