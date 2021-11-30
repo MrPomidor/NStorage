@@ -68,7 +68,7 @@ namespace NStorage.Tests.Benchmarks.Benchmarks
                 _fileNames
                     .AsParallel().WithDegreeOfParallelism(4).ForAll(fileName =>
                     {
-                        using var resultStream = storage.Get(fileName);
+                        using (var resultStream = storage.Get(fileName)) { }
                     });
 
             }
@@ -81,7 +81,7 @@ namespace NStorage.Tests.Benchmarks.Benchmarks
             {
                 foreach (var fileName in _fileNames)
                 {
-                    using var resultStream = storage.Get(fileName);
+                    using (var resultStream = storage.Get(fileName)) { }
                 }
             }
         }
