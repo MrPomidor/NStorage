@@ -2,6 +2,7 @@
 using System.IO;
 using System.Runtime.CompilerServices;
 using NStorage.DataStructure;
+using NStorage.Utils;
 
 namespace NStorage.StorageHandlers
 {
@@ -32,7 +33,7 @@ namespace NStorage.StorageHandlers
                 fileStream.Write(dataTuple.memory);
 
                 var record = new IndexRecord(new DataReference { StreamStart = startPosition, Length = streamLength }, dataTuple.properties);
-                RecordsCache.AddOrUpdate(key, (_) => record, (_, _) => record);
+                RecordsCache.AddOrUpdate(key, (k) => record, (k, prev) => record);
 
                 StorageFileLength += streamLength;
 

@@ -11,6 +11,7 @@ using NStorage.DataStructure;
 using NStorage.Exceptions;
 using NStorage.StorageHandlers;
 using NStorage.Tracing;
+using NStorage.Utils;
 
 namespace NStorage
 {
@@ -20,14 +21,18 @@ namespace NStorage
         public const string StorageFile = "storage.dat";
 
         private const int AesEncryption_IVLength = 16;
+#if NET6_0_OR_GREATER
         private const string LogPrefix = $"{nameof(BinaryStorage)}::";
+#else
+        private const string LogPrefix = nameof(BinaryStorage) + "::";
+#endif
 
-        private readonly object _storageFilesAccessLock = new();
+        private readonly object _storageFilesAccessLock = new object();
 
         private readonly FileStream _storageFileStream;
         private readonly FileStream _indexFileStream;
 
-        private readonly byte[]? _aesEncryption_Key;
+        private readonly byte[] _aesEncryption_Key;
         private readonly bool _encryptionEnalbed;
 
         private readonly ILogger _logger;
@@ -36,7 +41,7 @@ namespace NStorage
 
         public BinaryStorage(StorageConfiguration configuration) : this(logger: null, configuration) { }
 
-        public BinaryStorage(ILogger? logger,
+        public BinaryStorage(ILogger logger,
             StorageConfiguration configuration)
         {
             if (configuration == null)
@@ -48,8 +53,10 @@ namespace NStorage
             {
                 using (var aes = Aes.Create())
                 {
+#if NETSTANDARD2_1_OR_GREATER || NET5_0_OR_GREATER
                     if (!aes.ValidKeySize(bitLength: 8 * configuration.AesEncryptionKey.Length))
                         throw new ArgumentException("Encryption key length is invalid for current encryption algorithm", nameof(configuration));
+#endif
                 }
                 _encryptionEnalbed = true;
                 _aesEncryption_Key = configuration.AesEncryptionKey;
@@ -68,23 +75,32 @@ namespace NStorage
 
             try
             {
-                // TODO conditional compilation for netstardard and netframework
-                //_indexFileStream = File.Open(_indexFilePath, FileMode.Open, FileAccess.ReadWrite, FileShare.None);
+                var fileMode = FileMode.Open;
+                var fileAccess = FileAccess.ReadWrite;
+                var fileShare = FileShare.None;
+
+#if NET6_0_OR_GREATER
                 _indexFileStream = File.Open(indexFilePath, new FileStreamOptions
                 {
-                    Mode = FileMode.Open,
-                    Access = FileAccess.ReadWrite,
-                    Share = FileShare.None,
+                    Mode = fileMode,
+                    Access = fileAccess,
+                    Share = fileShare,
                     Options = FileOptions.RandomAccess
                 });
-                //_storageFileStream = File.Open(_storageFilePath, FileMode.Open, FileAccess.ReadWrite, FileShare.None);
+#else
+                _indexFileStream = File.Open(indexFilePath, fileMode, fileAccess, fileShare);
+#endif
+#if NET6_0_OR_GREATER
                 _storageFileStream = File.Open(storageFilePath, new FileStreamOptions
                 {
-                    Mode = FileMode.Open,
-                    Access = FileAccess.ReadWrite,
-                    Share = FileShare.None,
+                    Mode = fileMode,
+                    Access = fileAccess,
+                    Share = fileShare,
                     Options = FileOptions.RandomAccess
                 });
+#else
+                _storageFileStream = File.Open(storageFilePath, fileMode, fileAccess, fileShare);
+#endif
 
                 _indexHandler = new JsonIndexStorageHandler(_indexFileStream);
 
@@ -125,7 +141,7 @@ namespace NStorage
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, $"{LogPrefix}Could not initialize BinaryStorage");
+                LogError(ex, $"{LogPrefix}Could not initialize BinaryStorage");
                 DisposeInternal(disposing: false, flushBuffers: false);
                 throw;
             }
@@ -138,10 +154,11 @@ namespace NStorage
             DisposeInternal(disposing: false, flushBuffers: true);
         }
 
+        // TODO move to distinct class
         private void CheckIndexNotCorrupted(IndexDataStructure index)
         {
             long lastEndPosition = 0;
-            var kvp = index.Records.Select(kvp => kvp).OrderBy(x => x.Value.DataReference.StreamStart).ToArray();
+            var kvp = index.Records.OrderBy(x => x.Value.DataReference.StreamStart).ToArray();
             for (int i = 0; i < kvp.Length; i++)
             {
                 var record = kvp[i];
@@ -155,6 +172,7 @@ namespace NStorage
             }
         }
 
+        // TODO move to distinct class
         private void CheckStorageNotCorrupted(IndexDataStructure index, long storageLength)
         {
             var expectedStorageLengthBytes = index.Records.Values.Sum(x => x.DataReference.Length);
@@ -163,11 +181,11 @@ namespace NStorage
                 throw new StorageCorruptedException($"Storage length is not as expected in summ of index data records. FileLength {storageLength}, expected {expectedStorageLengthBytes}");
         }
 
-        public void Add(string key, Stream data, StreamInfo? parameters = null)
+        public void Add(string key, Stream data, StreamInfo parameters = null)
         {
             EnsureNotDisposed();
 
-            parameters ??= StreamInfo.Empty;
+            parameters = parameters ?? StreamInfo.Empty;
 
             EnsureStreamParametersCorrect(parameters);
 
@@ -219,7 +237,7 @@ namespace NStorage
 
             // compressed, encrypted
             // first compress, then decrypt
-            MemoryStream? compressedEncrypted = null;
+            MemoryStream compressedEncrypted = null;
             using (var compressed = GetCompressedStream(data))
             {
                 compressedEncrypted = GetEncryptedStream(compressed);
@@ -235,12 +253,13 @@ namespace NStorage
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private MemoryStream GetEncryptedStream(Stream dataStream)
         {
+#if NETSTANDARD2_1_OR_GREATER || NET5_0_OR_GREATER
             var resultStream = new MemoryStream(); // TODO memstream pooling
             using (var aes = Aes.Create())
             {
                 var iv = aes.IV;
                 resultStream.Write(iv, 0, iv.Length);
-                using (var encryptor = aes.CreateEncryptor(_aesEncryption_Key!, iv))
+                using (var encryptor = aes.CreateEncryptor(_aesEncryption_Key, iv))
                 using (var cryptoStream = new CryptoStream(resultStream, encryptor, CryptoStreamMode.Write, leaveOpen: true))
                 {
                     dataStream.CopyTo(cryptoStream);
@@ -248,6 +267,25 @@ namespace NStorage
             }
             resultStream.Seek(0, SeekOrigin.Begin);
             return resultStream;
+#else
+            var resultStream = new MemoryStream();
+            using (var bufferStream = new MemoryStream()) // TODO memstream pooling
+            using (var aes = Aes.Create())
+            {
+                var iv = aes.IV;
+                resultStream.Write(iv, 0, iv.Length);
+                using (var encryptor = aes.CreateEncryptor(_aesEncryption_Key, iv))
+                using (var cryptoStream = new CryptoStream(bufferStream, encryptor, CryptoStreamMode.Write))
+                {
+                    dataStream.CopyTo(cryptoStream);
+                    cryptoStream.FlushFinalBlock();
+                    bufferStream.Seek(0, SeekOrigin.Begin);
+                    bufferStream.CopyTo(resultStream);
+                }
+            }
+            resultStream.Seek(0, SeekOrigin.Begin);
+            return resultStream;
+#endif
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -308,7 +346,7 @@ namespace NStorage
 
             // compressed, encrypted
             // first decrypt, then decompress
-            MemoryStream? decrypted = null;
+            MemoryStream decrypted = null;
             using (var inputStream = new MemoryStream(bytes)) // TODO memstream pooling
             {
                 decrypted = GetNewStreamFromDecrypt(inputStream, key);
@@ -336,7 +374,7 @@ namespace NStorage
                 var IVBytes = new byte[AesEncryption_IVLength]; // TODO array pool
                 inputStream.Read(IVBytes, 0, AesEncryption_IVLength);
                 using (var aes = Aes.Create())
-                using (var decryptor = aes.CreateDecryptor(_aesEncryption_Key!, IVBytes))
+                using (var decryptor = aes.CreateDecryptor(_aesEncryption_Key, IVBytes))
                 {
                     using (var cryptoStream = new CryptoStream(inputStream, decryptor, CryptoStreamMode.Read))
                     {
@@ -347,9 +385,9 @@ namespace NStorage
                     }
                 }
             }
-            catch(CryptographicException cryptoException)
+            catch (CryptographicException cryptoException)
             {
-                _logger.LogError(cryptoException, $"{LogPrefix}Error reading encrypted data for key \"{key}\"");
+                LogError(cryptoException, $"{LogPrefix}Error reading encrypted data for key \"{key}\"");
                 throw new InvalidEncryptionKeyException("Invalid encryption key. Please check storage configuration");
             }
         }
@@ -413,7 +451,7 @@ namespace NStorage
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogError(ex, $"{LogPrefix}Error occured on disposing handler");
+                    LogError(ex, $"{LogPrefix}Error occured on disposing handler");
                 }
             }
 
@@ -424,7 +462,7 @@ namespace NStorage
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, $"{LogPrefix}Error occurred on disposing file streams");
+                LogError(ex, $"{LogPrefix}Error occurred on disposing file streams");
             }
 
             _isDisposed = true;
@@ -436,6 +474,16 @@ namespace NStorage
             DisposeInternal(disposing: true, flushBuffers: true);
 
             GC.SuppressFinalize(this);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private void LogError(Exception ex, string message)
+        {
+#if NETSTANDARD2_1_OR_GREATER || NET5_0_OR_GREATER
+            _logger.LogError(ex, message);
+#else
+            _logger.LogError(default(EventId), ex, message);
+#endif
         }
     }
 }

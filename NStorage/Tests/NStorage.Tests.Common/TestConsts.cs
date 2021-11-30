@@ -1,4 +1,7 @@
-﻿namespace NStorage.Tests.Common
+﻿using System;
+using System.IO;
+
+namespace NStorage.Tests.Common
 {
     public static class TestConsts
     {

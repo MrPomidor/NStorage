@@ -1,8 +1,9 @@
-﻿using Jil;
-using NStorage.DataStructure;
-using System.IO;
+﻿using System.IO;
 using System.Runtime.CompilerServices;
 using System.Text;
+using Jil;
+using NStorage.DataStructure;
+using NStorage.Utils;
 
 namespace NStorage.StorageHandlers
 {
@@ -20,10 +21,17 @@ namespace NStorage.StorageHandlers
             _indexFileStream.Seek(0, SeekOrigin.Begin);
             if (_indexFileStream.Length == 0)
                 return new IndexDataStructure();
-
-            using var streamReader = new StreamReader(_indexFileStream, leaveOpen: true);
-            var indexAsText = streamReader.ReadToEnd();
-            return JSON.Deserialize<IndexDataStructure>(indexAsText);
+#if NET5_0_OR_GREATER
+            using (var streamReader = new StreamReader(_indexFileStream, leaveOpen: true))
+#elif NETSTANDARD2_1_OR_GREATER
+            using (var streamReader = new StreamReader(_indexFileStream, new UTF8Encoding(false, true), detectEncodingFromByteOrderMarks: false, bufferSize: 1024, leaveOpen: true))
+#else 
+            using (var streamReader = new StreamReader(_indexFileStream, new UTF8Encoding(false, true), detectEncodingFromByteOrderMarks: false, bufferSize: 1024, leaveOpen: true))
+#endif
+            {
+                var indexAsText = streamReader.ReadToEnd();
+                return JSON.Deserialize<IndexDataStructure>(indexAsText);
+            }
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

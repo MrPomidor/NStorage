@@ -1,7 +1,7 @@
-﻿using NStorage.Exceptions;
-using System.IO;
+﻿using System.IO;
 using System.Linq;
 using System.Security.Cryptography;
+using NStorage.Exceptions;
 using Xunit;
 
 namespace NStorage.Tests.Integration.FullScenarious

@@ -62,11 +62,14 @@ namespace NStorage.Tests.Integration.FullScenarious
         private ConcurrentQueue<string> _filesQueue = new ConcurrentQueue<string>();
         private void WriteFiles(BinaryStorage storage, IEnumerable<string> files, StreamInfo streamInfo)
         {
-            files
-                .AsParallel().WithDegreeOfParallelism(2).ForAll(s =>
-                {
-                    AddFile(storage, s, streamInfo);
-                });
+#if NETSTANDARD2_1_OR_GREATER || NET5_0_OR_GREATER
+            files.AsParallel().WithDegreeOfParallelism(2).ForAll(s =>
+#else
+            Parallel.ForEach(files, (s) =>
+#endif
+            {
+                AddFile(storage, s, streamInfo);
+            });
             _haveFiles = false;
         }
 

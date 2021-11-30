@@ -1,5 +1,6 @@
 ﻿using System.IO;
 using System.Linq;
+using System.Threading.Tasks;
 using Xunit;
 
 namespace NStorage.Tests.Integration.FullScenarious
@@ -48,22 +49,27 @@ namespace NStorage.Tests.Integration.FullScenarious
             // Create storage and add data
             using (var storage = new BinaryStorage(storageConfiguration))
             {
-                files
-                    .AsParallel().WithDegreeOfParallelism(4).ForAll(s =>
-                    {
-                        AddFile(storage, s, streamInfo);
-                    });
-
+#if NETSTANDARD2_1_OR_GREATER || NET5_0_OR_GREATER
+                files.AsParallel().WithDegreeOfParallelism(4).ForAll(s =>
+#else
+                Parallel.ForEach(files, (s) =>
+#endif
+                {
+                    AddFile(storage, s, streamInfo);
+                });
             }
 
             // Open storage and read data
             using (var storage = new BinaryStorage(storageConfiguration))
             {
-                files
-                    .AsParallel().WithDegreeOfParallelism(4).ForAll(fileName =>
-                    {
-                        CheckFileHash(storage, fileName);
-                    });
+#if NETSTANDARD2_1_OR_GREATER || NET5_0_OR_GREATER
+                files.AsParallel().WithDegreeOfParallelism(4).ForAll(fileName =>
+#else
+                Parallel.ForEach(files, (fileName) =>
+#endif
+                {
+                    CheckFileHash(storage, fileName);
+                });
             }
         }
     }

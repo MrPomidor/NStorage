@@ -1,5 +1,5 @@
-﻿using NStorage.DataStructure;
-using System;
+﻿using System;
+using NStorage.DataStructure;
 
 namespace NStorage.StorageHandlers
 {

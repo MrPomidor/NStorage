@@ -35,13 +35,14 @@ namespace NStorage.Tests.Integration.Components.StorageHandlers
                 }
             };
 
-            using var storageHandler = new JsonIndexStorageHandler(_indexFileStream);
+            using (var storageHandler = new JsonIndexStorageHandler(_indexFileStream))
+            {
+                storageHandler.SerializeIndex(index);
 
-            storageHandler.SerializeIndex(index);
+                var indexDeserialized = storageHandler.DeserializeIndex();
 
-            var indexDeserialized = storageHandler.DeserializeIndex();
-
-            indexDeserialized.Should().BeEquivalentTo(index);
+                indexDeserialized.Should().BeEquivalentTo(index);
+            }
         }
 
         private string GetTempTestFolderPath(string testName)

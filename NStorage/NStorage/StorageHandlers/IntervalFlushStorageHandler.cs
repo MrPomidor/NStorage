@@ -13,7 +13,7 @@ namespace NStorage.StorageHandlers
     {
         private readonly int _flushIntervalMilliseconds;
 
-        private CancellationTokenSource _source = new();
+        private CancellationTokenSource _source = new CancellationTokenSource();
         private CancellationToken _token;
 
         private ManualResetEvent _flushDisposed = new ManualResetEvent(false);

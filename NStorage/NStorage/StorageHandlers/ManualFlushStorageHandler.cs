@@ -9,7 +9,7 @@ namespace NStorage.StorageHandlers
 {
     internal class ManualFlushStorageHandler : DeferredFlushStorageHandlerBase
     {
-        private readonly object _flushLock = new();
+        private readonly object _flushLock = new object();
 
         public ManualFlushStorageHandler(
             FileStream storageFileStream,
