@@ -17,4 +17,9 @@
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="1.1.2" />
   </ItemGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\NStorage.Contracts\NStorage.Contracts.csproj" />
+    <ProjectReference Include="..\NStorage.Utils\NStorage.Utils.csproj" />
+  </ItemGroup>
+
 </Project>

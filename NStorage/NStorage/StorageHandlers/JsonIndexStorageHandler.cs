@@ -3,7 +3,7 @@ using System.Runtime.CompilerServices;
 using System.Text;
 using Jil;
 using NStorage.DataStructure;
-using NStorage.Utils;
+using NStorage.Extensions;
 
 namespace NStorage.StorageHandlers
 {

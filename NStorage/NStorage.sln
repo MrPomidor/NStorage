@@ -9,7 +9,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "SampleApplications", "Sampl
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Tests", "Tests", "{BED6DFBE-5ED8-4FE5-93F4-8F685F159811}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NStorage.Samples.FastFolderBackup", "SampleApplications\NStorage.Samples.FastFolderBackup\NStorage.Samples.FastFolderBackup.csproj", "{AC95550E-C894-4E3E-826D-FC51B027E095}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "NStorage.Samples.FastFolderBackup", "SampleApplications\NStorage.Samples.FastFolderBackup\NStorage.Samples.FastFolderBackup.csproj", "{AC95550E-C894-4E3E-826D-FC51B027E095}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "NStorage.Samples.EventListenerDemo", "SampleApplications\NStorage.Samples.EventListenerDemo\NStorage.Samples.EventListenerDemo.csproj", "{C37F4CA1-15BB-4BE3-BCF0-604333E974DD}"
 EndProject
@@ -18,6 +18,10 @@ EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "NStorage.Tests.Common", "Tests\NStorage.Tests.Common\NStorage.Tests.Common.csproj", "{360EEC32-B31C-4857-A172-0186B39526E8}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "NStorage.Tests.Benchmarks", "Tests\NStorage.Tests.Benchmarks\NStorage.Tests.Benchmarks.csproj", "{75144483-6F36-4875-888C-72EE552F9342}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "NStorage.Contracts", "NStorage.Contracts\NStorage.Contracts.csproj", "{4D90ABE8-C9EE-4429-BD40-2FA40CB5C16B}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NStorage.Utils", "NStorage.Utils\NStorage.Utils.csproj", "{DFA6349B-C5EE-4158-8757-1839C3FA5E34}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -49,6 +53,14 @@ Global
 		{75144483-6F36-4875-888C-72EE552F9342}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{75144483-6F36-4875-888C-72EE552F9342}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{75144483-6F36-4875-888C-72EE552F9342}.Release|Any CPU.Build.0 = Release|Any CPU
+		{4D90ABE8-C9EE-4429-BD40-2FA40CB5C16B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{4D90ABE8-C9EE-4429-BD40-2FA40CB5C16B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{4D90ABE8-C9EE-4429-BD40-2FA40CB5C16B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{4D90ABE8-C9EE-4429-BD40-2FA40CB5C16B}.Release|Any CPU.Build.0 = Release|Any CPU
+		{DFA6349B-C5EE-4158-8757-1839C3FA5E34}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{DFA6349B-C5EE-4158-8757-1839C3FA5E34}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{DFA6349B-C5EE-4158-8757-1839C3FA5E34}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{DFA6349B-C5EE-4158-8757-1839C3FA5E34}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

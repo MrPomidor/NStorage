@@ -1,9 +1,9 @@
 ﻿using System.IO;
 using System.Runtime.CompilerServices;
 
-namespace NStorage.Utils
+namespace NStorage.Extensions
 {
-    internal static class StreamUtils
+    internal static class StreamExtensions
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void Write(this Stream fileStream, byte[] bytes)

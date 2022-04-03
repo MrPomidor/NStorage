@@ -3,7 +3,7 @@ using System.IO;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using NStorage.DataStructure;
-using NStorage.Utils;
+using NStorage.Extensions;
 
 namespace NStorage.StorageHandlers
 {
