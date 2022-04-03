@@ -46,45 +46,9 @@ namespace NStorage
 
             _streamHandler = new DefaultStreamHandler(_logger, configuration.AesEncryptionKey);
 
-            if (!Directory.Exists(configuration.WorkingFolder))
-                throw new ArgumentException(paramName: nameof(configuration), message: "Working folder should exist");
-
-            var indexFilePath = Path.Combine(configuration.WorkingFolder, IndexFile);
-            var storageFilePath = Path.Combine(configuration.WorkingFolder, StorageFile);
-
-            if (!File.Exists(indexFilePath))
-                File.WriteAllText(indexFilePath, string.Empty);
-            if (!File.Exists(storageFilePath))
-                File.WriteAllText(storageFilePath, string.Empty);
-
             try
             {
-                var fileMode = FileMode.Open;
-                var fileAccess = FileAccess.ReadWrite;
-                var fileShare = FileShare.None;
-
-#if NET6_0_OR_GREATER
-                _indexFileStream = File.Open(indexFilePath, new FileStreamOptions
-                {
-                    Mode = fileMode,
-                    Access = fileAccess,
-                    Share = fileShare,
-                    Options = FileOptions.RandomAccess
-                });
-#else
-                _indexFileStream = File.Open(indexFilePath, fileMode, fileAccess, fileShare);
-#endif
-#if NET6_0_OR_GREATER
-                _storageFileStream = File.Open(storageFilePath, new FileStreamOptions
-                {
-                    Mode = fileMode,
-                    Access = fileAccess,
-                    Share = fileShare,
-                    Options = FileOptions.RandomAccess
-                });
-#else
-                _storageFileStream = File.Open(storageFilePath, fileMode, fileAccess, fileShare);
-#endif
+                (_indexFileStream, _storageFileStream) = OpenStreams(configuration);
 
                 _indexHandler = new JsonIndexStorageHandler(_indexFileStream);
 
@@ -93,34 +57,7 @@ namespace NStorage
                 CheckIndexNotCorrupted(index);
                 CheckStorageNotCorrupted(index, _storageFileStream.Length);
 
-                var flushMode = configuration.FlushMode;
-                switch (flushMode)
-                {
-                    case FlushMode.AtOnce:
-                        _handler = new AtOnceFlushStorageHandler(
-                            storageFileStream: _storageFileStream,
-                            indexStorageHandler: _indexHandler,
-                            index: index,
-                            storageFilesAccessLock: _storageFilesAccessLock);
-                        break;
-                    case FlushMode.Deferred:
-                        _handler = new IntervalFlushStorageHandler(
-                            storageFileStream: _storageFileStream,
-                            indexStorageHandler: _indexHandler,
-                            storageFilesAccessLock: _storageFilesAccessLock,
-                            index: index,
-                            flushIntervalMilliseconds: configuration.FlushIntervalMilliseconds ?? StorageConfiguration.DefaultFlushIntervalMiliseconds);
-                        break;
-                    case FlushMode.Manual:
-                        _handler = new ManualFlushStorageHandler(
-                            storageFileStream: _storageFileStream,
-                            indexStorageHandler: _indexHandler,
-                            storageFilesAccessLock: _storageFilesAccessLock,
-                            index: index);
-                        break;
-                    default:
-                        throw new ArgumentOutOfRangeException("Unknown FlushMode");
-                }
+                _handler = GetStorageHandler(configuration, index);
                 _handler.Init();
             }
             catch (Exception ex)
@@ -136,6 +73,77 @@ namespace NStorage
         ~BinaryStorage()
         {
             DisposeInternal(disposing: false, flushBuffers: true);
+        }
+
+        private (FileStream indexFileStream, FileStream storageFileStream) OpenStreams(StorageConfiguration configuration)
+        {
+            if (!Directory.Exists(configuration.WorkingFolder))
+                throw new ArgumentException(paramName: nameof(configuration), message: "Working folder should exist");
+
+            var indexFilePath = Path.Combine(configuration.WorkingFolder, IndexFile);
+            var storageFilePath = Path.Combine(configuration.WorkingFolder, StorageFile);
+
+            if (!File.Exists(indexFilePath))
+                File.WriteAllText(indexFilePath, string.Empty);
+            if (!File.Exists(storageFilePath))
+                File.WriteAllText(storageFilePath, string.Empty);
+
+            var fileMode = FileMode.Open;
+            var fileAccess = FileAccess.ReadWrite;
+            var fileShare = FileShare.None;
+
+#if NET6_0_OR_GREATER
+            var indexFileStream = File.Open(indexFilePath, new FileStreamOptions
+            {
+                Mode = fileMode,
+                Access = fileAccess,
+                Share = fileShare,
+                Options = FileOptions.RandomAccess
+            });
+#else
+            var indexFileStream = File.Open(indexFilePath, fileMode, fileAccess, fileShare);
+#endif
+#if NET6_0_OR_GREATER
+            var storageFileStream = File.Open(storageFilePath, new FileStreamOptions
+            {
+                Mode = fileMode,
+                Access = fileAccess,
+                Share = fileShare,
+                Options = FileOptions.RandomAccess
+            });
+#else
+            var storageFileStream = File.Open(storageFilePath, fileMode, fileAccess, fileShare);
+#endif
+            return (indexFileStream, storageFileStream);
+        }
+
+        private IStorageHandler GetStorageHandler(StorageConfiguration configuration, IndexDataStructure index)
+        {
+            var flushMode = configuration.FlushMode;
+            switch (flushMode)
+            {
+                case FlushMode.AtOnce:
+                    return new AtOnceFlushStorageHandler(
+                        storageFileStream: _storageFileStream,
+                        indexStorageHandler: _indexHandler,
+                        index: index,
+                        storageFilesAccessLock: _storageFilesAccessLock);
+                case FlushMode.Deferred:
+                    return new IntervalFlushStorageHandler(
+                        storageFileStream: _storageFileStream,
+                        indexStorageHandler: _indexHandler,
+                        storageFilesAccessLock: _storageFilesAccessLock,
+                        index: index,
+                        flushIntervalMilliseconds: configuration.FlushIntervalMilliseconds ?? StorageConfiguration.DefaultFlushIntervalMiliseconds);
+                case FlushMode.Manual:
+                    return new ManualFlushStorageHandler(
+                        storageFileStream: _storageFileStream,
+                        indexStorageHandler: _indexHandler,
+                        storageFilesAccessLock: _storageFilesAccessLock,
+                        index: index);
+                default:
+                    throw new ArgumentOutOfRangeException("Unknown FlushMode");
+            }
         }
 
         private void CheckEncryptionKeyCorrect(StorageConfiguration configuration, out bool enableEncryption)
@@ -189,7 +197,7 @@ namespace NStorage
 
             EnsureStreamParametersCorrect(parameters);
 
-            EnsureAndBookKey(key);
+            _handler.EnsureAndBookKey(key);
 
             var dataTuple = _streamHandler.PackData(data, parameters);
             _handler.Add(key, dataTuple);
@@ -204,22 +212,17 @@ namespace NStorage
                 throw new ArgumentException(message: "Encryption was not configured in StorageConfiguration", paramName: nameof(parameters));
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private void EnsureAndBookKey(string key)
-        {
-            _handler.EnsureAndBookKey(key);
-        }
-
         public Stream Get(string key)
         {
             EnsureNotDisposed();
 
-            if (!_handler.TryGetRecord(key, out var record))
+            var record = _handler.GetRecord(key);
+            if (record == null)
                 throw new KeyNotFoundException(key);
 
-            EnsureDataPropertiesCorrect(record.recordProperties);
+            EnsureDataPropertiesCorrect(record.Value.recordProperties);
 
-            return _streamHandler.UnPackData(record.recordBytes, record.recordProperties);
+            return _streamHandler.UnPackData(record.Value.recordBytes, record.Value.recordProperties);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

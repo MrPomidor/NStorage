@@ -49,15 +49,14 @@ namespace NStorage.StorageHandlers
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public override bool TryGetRecord(string key, out (byte[], DataProperties) outRecord)
+        public override (byte[], DataProperties)? GetRecord(string key)
         {
             if (_tempRecordsCache.TryGetValue(key, out var record) && record != null)
             {
-                outRecord = (record.Value.memory, record.Value.properties);
-                return true;
+                return (record.Value.memory, record.Value.properties);
             }
 
-            return base.TryGetRecord(key, out outRecord);
+            return base.GetRecord(key);
         }
 
         protected void FlushInternal(List<(string key, (byte[] memory, DataProperties properties))> processingBuffer)

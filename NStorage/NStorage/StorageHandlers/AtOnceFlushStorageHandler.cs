@@ -61,11 +61,11 @@ namespace NStorage.StorageHandlers
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public override bool TryGetRecord(string key, out (byte[], DataProperties) outRecord)
+        public override (byte[], DataProperties)? GetRecord(string key)
         {
             EnsureNotDisposed();
 
-            return base.TryGetRecord(key, out outRecord);
+            return base.GetRecord(key);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

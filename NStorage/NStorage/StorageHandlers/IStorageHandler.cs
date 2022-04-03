@@ -11,7 +11,7 @@ namespace NStorage.StorageHandlers
         void Init();
         void EnsureAndBookKey(string key);
         void Add(string key, (byte[] memory, DataProperties properties) dataTuple);
-        bool TryGetRecord(string key, out (byte[] recordBytes, DataProperties recordProperties) record);
+        (byte[] recordBytes, DataProperties recordProperties)? GetRecord(string key);
         bool Contains(string key);
         void Flush();
     }

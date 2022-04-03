@@ -37,12 +37,10 @@ namespace NStorage.StorageHandlers
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public virtual bool TryGetRecord(string key, out (byte[], DataProperties) record)
+        public virtual (byte[], DataProperties)? GetRecord(string key)
         {
-            record = default;
-
             if (!RecordsCache.TryGetValue(key, out var recordData) || recordData == null)
-                return false;
+                return null;
 
             var fileStream = StorageFileStream;
             var bytes = new byte[recordData.DataReference.Length];
@@ -54,8 +52,7 @@ namespace NStorage.StorageHandlers
                 fileStream.Seek(fileStreamLength, SeekOrigin.Begin);
             }
 
-            record = (bytes, recordData.Properties);
-            return true;
+            return (bytes, recordData.Properties);
         }
 
         public abstract void Add(string key, (byte[] memory, DataProperties properties) dataTuple);
