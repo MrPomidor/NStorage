@@ -23,5 +23,5 @@ function GenerateTestData {
     }
 }
 
-GenerateTestData $SmallTestDataFolder 1000 200000  # ~40MB
-GenerateTestData $LargeTestDataFolder 1000000 500 # ~100MB
+GenerateTestData $SmallTestDataFolder 1000 5000
+GenerateTestData $LargeTestDataFolder 1000000 500
