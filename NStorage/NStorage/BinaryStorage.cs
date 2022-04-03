@@ -197,7 +197,7 @@ namespace NStorage
 
             EnsureStreamParametersCorrect(parameters);
 
-            _handler.EnsureAndBookKey(key);
+            _handler.EnsureAndBookKey(key); // TODO make try/catch logic to release locking if data was not added successfully
 
             var dataTuple = _streamHandler.PackData(data, parameters);
             _handler.Add(key, dataTuple);

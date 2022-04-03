@@ -22,12 +22,12 @@ namespace NStorage.StorageHandlers
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public override void Add(string key, (byte[] memory, DataProperties properties) dataTuple)
         {
-            EnsureNotDisposed();
-
-            long streamLength = dataTuple.memory.Length;
-
             lock (StorageFilesAccessLock)
             {
+                EnsureNotDisposed();
+
+                long streamLength = dataTuple.memory.Length;
+
                 var fileStream = StorageFileStream;
                 long startPosition = StorageFileLength;
                 fileStream.Write(dataTuple.memory);
@@ -71,10 +71,7 @@ namespace NStorage.StorageHandlers
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public override void Flush()
         {
-            lock (StorageFilesAccessLock)
-            {
-                FlushFiles();
-            }
+            throw new InvalidOperationException("No need to call Flush on AtOnce flush mode");
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -93,10 +90,8 @@ namespace NStorage.StorageHandlers
 
             _isDisposing = true;
 
-            lock (StorageFilesAccessLock)
-            {
-                FlushFiles();
-            }
+            lock (StorageFilesAccessLock) { } // be sure lock is no aquired by write
+
             _isDisposed = true;
             _isDisposing = false;
         }
