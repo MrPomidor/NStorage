@@ -43,7 +43,7 @@ namespace NStorage.Tests.Benchmarks.Benchmarks
             }
         }
 
-        [Benchmark]
+        //[Benchmark]
         public void SerializeDeserialize()
         {
             for (int i = 0; i < CyclesCount; i++)
@@ -53,7 +53,7 @@ namespace NStorage.Tests.Benchmarks.Benchmarks
             }
         }
 
-        [Benchmark]
+        //[Benchmark]
         public void Serialize()
         {
             for (int i = 0; i < CyclesCount; i++)
@@ -62,7 +62,7 @@ namespace NStorage.Tests.Benchmarks.Benchmarks
             }
         }
 
-        [Benchmark]
+        //[Benchmark]
         public void Deserialize()
         {
             for (int i = 0; i < CyclesCount; i++)

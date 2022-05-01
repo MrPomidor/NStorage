@@ -8,4 +8,4 @@
 
 dotnet run -c Release `
     --framework net6.0 `
-    --filter * 
+    --filter *

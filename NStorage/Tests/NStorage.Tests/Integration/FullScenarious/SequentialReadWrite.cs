@@ -16,17 +16,17 @@ namespace NStorage.Tests.Integration.FullScenarious
 
         [Theory]
         [InlineData(0)]
-        [InlineData(1)]
-        [InlineData(2)]
+        //[InlineData(1)]
+        //[InlineData(2)]
         [InlineData(3)]
-        [InlineData(4)]
-        [InlineData(5)]
+        //[InlineData(4)]
+        //[InlineData(5)]
         [InlineData(6)]
-        [InlineData(7)]
-        [InlineData(8)]
+        //[InlineData(7)]
+        //[InlineData(8)]
         [InlineData(9)]
-        [InlineData(10)]
-        [InlineData(11)]
+        //[InlineData(10)]
+        //[InlineData(11)]
         public void Test(int dataSetIndex)
         {
             var configuration = GetStorageConfiguration(_storageFolder, dataSetIndex, _aesKey);
